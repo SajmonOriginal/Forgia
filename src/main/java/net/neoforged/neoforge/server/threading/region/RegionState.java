@@ -45,6 +45,10 @@ final class RegionState {
         return this.taskQueue;
     }
 
+    void clearTasks() {
+        this.taskQueue.clearAndCancel();
+    }
+
     RegionTickTimer tickTimer() {
         return this.tickTimer;
     }
@@ -78,6 +82,6 @@ final class RegionState {
     }
 
     boolean isEmpty() {
-        return !this.hasSections() && this.taskQueue.isEmpty();
+        return !this.isRunning() && !this.hasSections() && this.taskQueue.isEmpty();
     }
 }

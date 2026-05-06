@@ -5,6 +5,8 @@
 
 package net.neoforged.neoforge.server.threading.region;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Mutable runtime state for server-global region work.
  */
@@ -12,10 +14,15 @@ final class GlobalRegionState {
     private final RegionTaskQueue taskQueue = new RegionTaskQueue();
     private final RegionTickTimer tickTimer = new RegionTickTimer(System.nanoTime());
     private final RegionTickMetrics tickMetrics = new RegionTickMetrics();
+    private final AtomicBoolean running = new AtomicBoolean();
     private volatile Thread ownerThread;
 
     RegionTaskQueue taskQueue() {
         return this.taskQueue;
+    }
+
+    void clearTasks() {
+        this.taskQueue.clearAndCancel();
     }
 
     RegionTickTimer tickTimer() {
@@ -36,5 +43,17 @@ final class GlobalRegionState {
 
     boolean isOwnedByCurrentThread() {
         return this.ownerThread == Thread.currentThread();
+    }
+
+    boolean tryMarkRunning() {
+        return this.running.compareAndSet(false, true);
+    }
+
+    void clearRunning() {
+        this.running.set(false);
+    }
+
+    boolean isRunning() {
+        return this.running.get();
     }
 }

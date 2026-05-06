@@ -990,8 +990,10 @@ public class EventHooks {
     public static void fireLevelTickPre(Level level, BooleanSupplier haveTime) {
         if (level instanceof ServerLevel serverLevel) {
             RegionThreadingHooks.drainLevelRegionTasks(serverLevel);
+            RegionThreadingHooks.runLevelTickTask(serverLevel, () -> NeoForge.EVENT_BUS.post(new LevelTickEvent.Pre(haveTime, level)));
+        } else {
+            NeoForge.EVENT_BUS.post(new LevelTickEvent.Pre(haveTime, level));
         }
-        NeoForge.EVENT_BUS.post(new LevelTickEvent.Pre(haveTime, level));
     }
 
     /**
@@ -1001,7 +1003,11 @@ public class EventHooks {
      * @param haveTime The time supplier, indicating if there is remaining time to do work in the current tick.
      */
     public static void fireLevelTickPost(Level level, BooleanSupplier haveTime) {
-        NeoForge.EVENT_BUS.post(new LevelTickEvent.Post(haveTime, level));
+        if (level instanceof ServerLevel serverLevel) {
+            RegionThreadingHooks.runLevelTickTask(serverLevel, () -> NeoForge.EVENT_BUS.post(new LevelTickEvent.Post(haveTime, level)));
+        } else {
+            NeoForge.EVENT_BUS.post(new LevelTickEvent.Post(haveTime, level));
+        }
     }
 
     /**
@@ -1012,7 +1018,7 @@ public class EventHooks {
      */
     public static void fireServerTickPre(BooleanSupplier haveTime, MinecraftServer server) {
         RegionThreadingHooks.drainGlobalTasks();
-        NeoForge.EVENT_BUS.post(new ServerTickEvent.Pre(haveTime, server));
+        RegionThreadingHooks.runGlobalTask(() -> NeoForge.EVENT_BUS.post(new ServerTickEvent.Pre(haveTime, server)));
     }
 
     /**
@@ -1022,7 +1028,7 @@ public class EventHooks {
      * @param server   The current server
      */
     public static void fireServerTickPost(BooleanSupplier haveTime, MinecraftServer server) {
-        NeoForge.EVENT_BUS.post(new ServerTickEvent.Post(haveTime, server));
+        RegionThreadingHooks.runGlobalTask(() -> NeoForge.EVENT_BUS.post(new ServerTickEvent.Post(haveTime, server)));
     }
 
     private static final WeightedRandomList<MobSpawnSettings.SpawnerData> NO_SPAWNS = WeightedRandomList.create();

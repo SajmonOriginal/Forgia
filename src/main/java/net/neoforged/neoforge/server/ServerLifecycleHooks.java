@@ -51,6 +51,7 @@ import net.neoforged.neoforge.mixins.MappedRegistryAccessor;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import net.neoforged.neoforge.registries.NeoForgeRegistries.Keys;
 import net.neoforged.neoforge.server.permission.PermissionAPI;
+import net.neoforged.neoforge.server.threading.RegionThreadingCompatibility;
 import net.neoforged.neoforge.server.threading.RegionThreadingManager;
 import net.neoforged.neoforge.server.threading.region.RegionThreadingEngine;
 import org.apache.logging.log4j.LogManager;
@@ -98,7 +99,13 @@ public class ServerLifecycleHooks {
         LogicalSidedProvider.setServer(() -> server);
         ConfigTracker.INSTANCE.loadConfigs(ModConfig.Type.SERVER, FMLPaths.CONFIGDIR.get(), getServerConfigPath(server));
         if (NeoForgeConfig.SERVER.enableRegionThreadingBridge.get()) {
-            RegionThreadingManager.install(new RegionThreadingEngine(NeoForgeConfig.SERVER.regionThreadingWorkerThreads.get()));
+            if (RegionThreadingCompatibility.canInstallBridge()) {
+                RegionThreadingManager.install(new RegionThreadingEngine(NeoForgeConfig.SERVER.regionThreadingWorkerThreads.get(), NeoForgeConfig.SERVER.enableRegionThreadingWorkers.get(), NeoForgeConfig.SERVER.enableGlobalRegionThreadingWorker.get()));
+            } else {
+                LOGGER.warn(SERVERHOOKS, "Region threading bridge is enabled but blocked by compatibility policy {}; unsupported mods: {}", RegionThreadingCompatibility.defaultSupport(), RegionThreadingCompatibility.unsupportedMods());
+            }
+        } else if (!RegionThreadingCompatibility.requiredMods().isEmpty()) {
+            LOGGER.warn(SERVERHOOKS, "Region threading bridge is disabled but required by mods: {}", RegionThreadingCompatibility.requiredMods());
         }
         runModifiers(server);
         NeoForge.EVENT_BUS.post(new ServerAboutToStartEvent(server));

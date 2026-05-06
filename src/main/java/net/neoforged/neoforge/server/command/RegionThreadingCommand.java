@@ -10,6 +10,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.common.NeoForgeConfig;
+import net.neoforged.neoforge.server.threading.RegionThreadingCompatibility;
 import net.neoforged.neoforge.server.threading.RegionThreadingHooks;
 import net.neoforged.neoforge.server.threading.region.RegionThreadingDiagnostics;
 
@@ -33,16 +34,33 @@ final class RegionThreadingCommand {
                 + ", regions=" + diagnostics.regionCount()
                 + ", runningRegions=" + diagnostics.runningRegionCount()
                 + ", sections=" + diagnostics.sectionCount()
+                + ", structuralChanges=" + diagnostics.structuralChangeCount()
                 + ", trackedEntities=" + diagnostics.trackedEntityCount()
                 + ", entityTasks=" + diagnostics.trackedEntityTaskCount()
                 + ", workerThreads=" + diagnostics.workerThreadCount()
+                + ", workerExecution=" + diagnostics.workerExecutionEnabled()
+                + ", globalWorkerExecution=" + diagnostics.globalWorkerExecutionEnabled()
+                + ", globalRunning=" + diagnostics.globalRegionRunning()
+                + ", ownershipViolations=" + NeoForgeConfig.SERVER.regionThreadingOwnershipViolationMode.get()
+                + ", ownershipViolationCount=" + diagnostics.ownershipViolationCount()
+                + ", defaultModSupport=" + RegionThreadingCompatibility.defaultSupport()
+                + ", unsupportedMods=" + RegionThreadingCompatibility.unsupportedMods().size()
+                + ", requiredMods=" + RegionThreadingCompatibility.requiredMods().size()
                 + ", globalTicks=" + diagnostics.globalTickCount()
-                + ", globalLastTickNs=" + diagnostics.globalLastTickDurationNanos()), false);
+                + ", globalLastTickNs=" + diagnostics.globalLastTickDurationNanos()
+                + ", regionTicks=" + diagnostics.totalRegionTickCount()
+                + ", maxRegionLastTickNs=" + diagnostics.maxRegionLastTickDurationNanos()), false);
     }
 
     private static void sendNotInstalled(CommandSourceStack source) {
         source.sendSuccess(() -> Component.literal("Region threading bridge is not installed: enabled="
                 + NeoForgeConfig.SERVER.enableRegionThreadingBridge.get()
+                + ", workerExecution=" + NeoForgeConfig.SERVER.enableRegionThreadingWorkers.get()
+                + ", globalWorkerExecution=" + NeoForgeConfig.SERVER.enableGlobalRegionThreadingWorker.get()
+                + ", ownershipViolations=" + NeoForgeConfig.SERVER.regionThreadingOwnershipViolationMode.get()
+                + ", defaultModSupport=" + RegionThreadingCompatibility.defaultSupport()
+                + ", unsupportedMods=" + RegionThreadingCompatibility.unsupportedMods().size()
+                + ", requiredMods=" + RegionThreadingCompatibility.requiredMods().size()
                 + ", configuredWorkerThreads=" + NeoForgeConfig.SERVER.regionThreadingWorkerThreads.get()), false);
     }
 }

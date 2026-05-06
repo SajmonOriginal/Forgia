@@ -12,6 +12,8 @@ import net.neoforged.neoforge.client.ClientHooks;
 import net.neoforged.neoforge.common.ModConfigSpec.BooleanValue;
 import net.neoforged.neoforge.common.ModConfigSpec.ConfigValue;
 import net.neoforged.neoforge.common.ModConfigSpec.IntValue;
+import net.neoforged.neoforge.common.ModConfigSpec.LongValue;
+import net.neoforged.neoforge.server.threading.RegionThreadingSupport;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 
@@ -32,7 +34,17 @@ public class NeoForgeConfig {
 
         public final BooleanValue enableRegionThreadingBridge;
 
+        public final BooleanValue enableRegionThreadingWorkers;
+
+        public final BooleanValue enableGlobalRegionThreadingWorker;
+
         public final IntValue regionThreadingWorkerThreads;
+
+        public final ModConfigSpec.EnumValue<RegionThreadingOwnershipViolationMode> regionThreadingOwnershipViolationMode;
+
+        public final ModConfigSpec.EnumValue<RegionThreadingSupport> defaultRegionThreadingSupport;
+
+        public final LongValue regionThreadingLongTickWarningNanos;
 
         Server(ModConfigSpec.Builder builder) {
             removeErroringBlockEntities = builder
@@ -69,12 +81,46 @@ public class NeoForgeConfig {
                     .worldRestart()
                     .define("enableRegionThreadingBridge", false);
 
+            enableRegionThreadingWorkers = builder
+                    .comment("EXPERIMENTAL: Executes due region queue drains on native region worker threads instead of the server thread bridge. Requires enableRegionThreadingBridge. Unsafe until ownership guards are complete.")
+                    .translation("neoforge.configgui.enableRegionThreadingWorkers")
+                    .worldRestart()
+                    .define("enableRegionThreadingWorkers", false);
+
+            enableGlobalRegionThreadingWorker = builder
+                    .comment("EXPERIMENTAL: Executes global-region queue drains on the native worker pool instead of the server thread bridge. Requires enableRegionThreadingBridge.")
+                    .translation("neoforge.configgui.enableGlobalRegionThreadingWorker")
+                    .worldRestart()
+                    .define("enableGlobalRegionThreadingWorker", false);
+
             regionThreadingWorkerThreads = builder
                     .comment("EXPERIMENTAL: Number of native region worker threads reserved for the future region scheduler. A value of 0 uses max(1, available processors - 1).")
                     .translation("neoforge.configgui.regionThreadingWorkerThreads")
                     .worldRestart()
                     .defineInRange("regionThreadingWorkerThreads", 0, 0, 512);
+
+            regionThreadingOwnershipViolationMode = builder
+                    .comment("EXPERIMENTAL: Controls how region threading ownership assertion failures are handled.")
+                    .translation("neoforge.configgui.regionThreadingOwnershipViolationMode")
+                    .defineEnum("regionThreadingOwnershipViolationMode", RegionThreadingOwnershipViolationMode.WARN);
+
+            defaultRegionThreadingSupport = builder
+                    .comment("EXPERIMENTAL: Default region threading support status for mods that do not declare explicit metadata yet.")
+                    .translation("neoforge.configgui.defaultRegionThreadingSupport")
+                    .worldRestart()
+                    .defineEnum("defaultRegionThreadingSupport", RegionThreadingSupport.UNKNOWN);
+
+            regionThreadingLongTickWarningNanos = builder
+                    .comment("EXPERIMENTAL: Logs a warning when a global or region queue drain exceeds this duration in nanoseconds. 0 disables warnings.")
+                    .translation("neoforge.configgui.regionThreadingLongTickWarningNanos")
+                    .defineInRange("regionThreadingLongTickWarningNanos", 0L, 0L, Long.MAX_VALUE);
         }
+    }
+
+    public enum RegionThreadingOwnershipViolationMode {
+        DISABLED,
+        WARN,
+        THROW
     }
 
     /**

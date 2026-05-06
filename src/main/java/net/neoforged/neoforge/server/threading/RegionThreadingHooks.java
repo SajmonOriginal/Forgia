@@ -31,6 +31,18 @@ public final class RegionThreadingHooks {
     }
 
     /**
+     * Runs {@code task} in global-region context when the native engine is installed.
+     */
+    public static void runGlobalTask(Runnable task) {
+        final Optional<RegionThreading> threading = RegionThreadingManager.get();
+        if (threading.isPresent() && threading.get() instanceof RegionThreadingEngine engine) {
+            engine.runInGlobalRegion(task);
+        } else {
+            task.run();
+        }
+    }
+
+    /**
      * Drains region work for {@code level} on the current level tick loop.
      */
     public static void drainLevelRegionTasks(ServerLevel level) {
@@ -39,6 +51,18 @@ public final class RegionThreadingHooks {
                 engine.drainLevelRegionTasks(level);
             }
         });
+    }
+
+    /**
+     * Runs {@code task} in the current level tick bridge context.
+     */
+    public static void runLevelTickTask(ServerLevel level, Runnable task) {
+        final Optional<RegionThreading> threading = RegionThreadingManager.get();
+        if (threading.isPresent() && threading.get() instanceof RegionThreadingEngine engine) {
+            engine.runInLevelTick(level, task);
+        } else {
+            task.run();
+        }
     }
 
     /**

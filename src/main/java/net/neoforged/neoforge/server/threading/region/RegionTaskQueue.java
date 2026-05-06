@@ -65,6 +65,14 @@ final class RegionTaskQueue {
         }
     }
 
+    void clearAndCancel() {
+        this.tasks.clear();
+        synchronized (this.scheduledTasks) {
+            this.scheduledTasks.forEach(RegionScheduledTask::cancel);
+            this.scheduledTasks.clear();
+        }
+    }
+
     private RegionScheduledTask schedule(Runnable task, long delayTicks, long periodTicks) {
         final RegionScheduledTask scheduledTask = new RegionScheduledTask(task, this.currentTick + delayTicks, periodTicks);
         synchronized (this.scheduledTasks) {

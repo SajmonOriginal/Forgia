@@ -12,8 +12,15 @@ public record RegionThreadingDiagnostics(
         int regionCount,
         int runningRegionCount,
         int sectionCount,
+        long structuralChangeCount,
         int trackedEntityCount,
         int trackedEntityTaskCount,
         int workerThreadCount,
+        boolean workerExecutionEnabled,
+        boolean globalWorkerExecutionEnabled,
+        boolean globalRegionRunning,
+        long ownershipViolationCount,
         long globalTickCount,
-        long globalLastTickDurationNanos) {}
+        long globalLastTickDurationNanos,
+        long totalRegionTickCount,
+        long maxRegionLastTickDurationNanos) {}

@@ -37,10 +37,15 @@ public final class RegionThreadingEngine implements RegionThreading {
     private final GlobalRegionScheduler globalScheduler = new EngineGlobalRegionScheduler(this);
     private final RegionScheduler regionScheduler = new EngineRegionScheduler(this);
     private final EntityRegionScheduler entityScheduler = new EngineEntityRegionScheduler(this);
+    private final boolean workerExecutionEnabled;
+    private final boolean globalWorkerExecutionEnabled;
     private volatile boolean shutdown;
 
-    public RegionThreadingEngine(int workerThreads) {
+    public RegionThreadingEngine(int workerThreads, boolean workerExecutionEnabled, boolean globalWorkerExecutionEnabled) {
         this.workerPool = new RegionWorkerPool(workerThreads > 0 ? workerThreads : Math.max(1, Runtime.getRuntime().availableProcessors() - 1));
+        this.workerExecutionEnabled = workerExecutionEnabled;
+        this.globalWorkerExecutionEnabled = globalWorkerExecutionEnabled;
+        RegionOwnershipViolationHandler.reset();
     }
 
     @Override
@@ -77,6 +82,20 @@ public final class RegionThreadingEngine implements RegionThreading {
             return false;
         }
         return this.isOwnedByCurrentRegion(level, entity.blockPosition());
+    }
+
+    @Override
+    public void assertOwnedByCurrentRegion(ServerLevel level, BlockPos pos) {
+        if (!this.isOwnedByCurrentRegion(level, pos)) {
+            RegionOwnershipViolationHandler.handle("Current thread does not own region at " + pos);
+        }
+    }
+
+    @Override
+    public void assertOwnedByCurrentRegion(Entity entity) {
+        if (!this.isOwnedByCurrentRegion(entity)) {
+            RegionOwnershipViolationHandler.handle("Current thread does not own entity " + entity);
+        }
     }
 
     @Override
@@ -133,14 +152,47 @@ public final class RegionThreadingEngine implements RegionThreading {
      */
     @ApiStatus.Internal
     public void drainGlobalTasks() {
-        this.globalTickRunner.runIfDue(this.globalRegion, System.nanoTime(), () -> {
-            this.globalRegion.beginOwnership();
-            try {
-                this.runWithContext(new BasicRegionThreadingContext(RegionThreadingContext.Kind.GLOBAL_REGION, null, null, null), this.globalRegion.taskQueue()::drain);
-            } finally {
-                this.globalRegion.endOwnership();
-            }
-        });
+        if (this.globalRegion.isRunning()) {
+            return;
+        }
+        final long now = System.nanoTime();
+        if (this.globalWorkerExecutionEnabled) {
+            this.workerPool.execute(() -> this.globalTickRunner.runIfDue(this.globalRegion, now, this::drainGlobalRegionState));
+            return;
+        }
+        this.globalTickRunner.runIfDue(this.globalRegion, now, this::drainGlobalRegionState);
+    }
+
+    private void drainGlobalRegionState() {
+        if (!this.globalRegion.tryMarkRunning()) {
+            return;
+        }
+        try {
+            this.runInGlobalRegion(this.globalRegion.taskQueue()::drain);
+        } finally {
+            this.globalRegion.clearRunning();
+        }
+    }
+
+    /**
+     * Runs {@code task} while the current thread owns the global region context.
+     */
+    @ApiStatus.Internal
+    public void runInGlobalRegion(Runnable task) {
+        this.globalRegion.beginOwnership();
+        try {
+            this.runWithContext(new BasicRegionThreadingContext(RegionThreadingContext.Kind.GLOBAL_REGION, null, null, null), task);
+        } finally {
+            this.globalRegion.endOwnership();
+        }
+    }
+
+    /**
+     * Runs {@code task} while the current thread is executing a server level tick bridge.
+     */
+    @ApiStatus.Internal
+    public void runInLevelTick(ServerLevel level, Runnable task) {
+        this.runWithContext(new BasicRegionThreadingContext(RegionThreadingContext.Kind.LEVEL, level, null, null), task);
     }
 
     /**
@@ -164,7 +216,14 @@ public final class RegionThreadingEngine implements RegionThreading {
         final long now = System.nanoTime();
         this.regionizer.forEach(region -> {
             if (region.coordinate().level() == level) {
-                this.tickRunner.runIfDue(region, now, () -> this.drainRegionState(region));
+                if (this.workerExecutionEnabled && region.isRunning()) {
+                    return;
+                }
+                if (this.workerExecutionEnabled) {
+                    this.submitRegionTick(region, now);
+                } else {
+                    this.tickRunner.runIfDue(region, now, () -> this.drainRegionState(region));
+                }
                 this.regionizer.removeIfEmpty(region);
             }
         });
@@ -247,11 +306,18 @@ public final class RegionThreadingEngine implements RegionThreading {
                 this.regionizer.size(),
                 this.regionizer.runningRegionCount(),
                 this.regionizer.sectionCount(),
+                this.regionizer.structuralChangeCount(),
                 this.regionizer.entityCount(),
                 this.entityTasks.size(),
                 this.workerPool.threadCount(),
+                this.workerExecutionEnabled,
+                this.globalWorkerExecutionEnabled,
+                this.globalRegion.isRunning(),
+                RegionOwnershipViolationHandler.violationCount(),
                 this.globalRegion.tickMetrics().tickCount(),
-                this.globalRegion.tickMetrics().lastTickDurationNanos());
+                this.globalRegion.tickMetrics().lastTickDurationNanos(),
+                this.regionizer.totalRegionTickCount(),
+                this.regionizer.maxRegionLastTickDurationNanos());
     }
 
     /**
@@ -263,6 +329,7 @@ public final class RegionThreadingEngine implements RegionThreading {
             return;
         }
         this.shutdown = true;
+        this.globalRegion.clearTasks();
         this.entityTasks.forEach(EntityRegionScheduledTask::cancel);
         this.entityTasks.clear();
         this.regionizer.clear();
@@ -298,9 +365,10 @@ public final class RegionThreadingEngine implements RegionThreading {
         }
     }
 
-    private void submitRegionTick(RegionState region) {
+    private void submitRegionTick(RegionState region, long nowNanos) {
         this.workerPool.execute(() -> {
-            this.drainRegionState(region);
+            this.tickRunner.runIfDue(region, nowNanos, () -> this.drainRegionState(region));
+            this.regionizer.removeIfEmpty(region);
         });
     }
 

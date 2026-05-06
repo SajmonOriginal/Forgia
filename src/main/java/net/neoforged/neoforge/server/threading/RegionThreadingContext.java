@@ -23,15 +23,16 @@ public interface RegionThreadingContext {
     Optional<ServerLevel> level();
 
     /**
-     * {@return true when code is running on a region or global-region tick thread}
+     * {@return true when code is running on a level, region, or global-region tick thread}
      */
     default boolean isTickThread() {
-        return this.kind() == Kind.GLOBAL_REGION || this.kind() == Kind.REGION;
+        return this.kind() == Kind.GLOBAL_REGION || this.kind() == Kind.LEVEL || this.kind() == Kind.REGION;
     }
 
     enum Kind {
         NONE,
         GLOBAL_REGION,
+        LEVEL,
         REGION,
         ASYNC
     }
