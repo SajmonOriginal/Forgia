@@ -121,6 +121,15 @@
          this.getProfiler().pop();
  
          for (Entity entity : p_8648_.getPassengers()) {
+@@ -775,7 +_,7 @@
+             ProfilerFiller profilerfiller = this.getProfiler();
+             profilerfiller.push(() -> BuiltInRegistries.ENTITY_TYPE.getKey(p_8664_.getType()).toString());
+             profilerfiller.incrementCounter("tickPassenger");
+-            p_8664_.rideTick();
++            net.neoforged.neoforge.server.threading.RegionThreadingHooks.runEntityTickTask(p_8664_, p_8664_::rideTick);
+             profilerfiller.pop();
+
+             for (Entity entity : p_8664_.getPassengers()) {
 @@ -807,6 +_,10 @@
              } else {
                  this.entityManager.autoSave();
