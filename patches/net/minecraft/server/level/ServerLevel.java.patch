@@ -115,7 +115,7 @@
 -        p_8648_.tick();
 +        // Neo: Permit cancellation of Entity#tick via EntityTickEvent.Pre
 +        if (!net.neoforged.neoforge.event.EventHooks.fireEntityTickPre(p_8648_).isCanceled()) {
-+            p_8648_.tick();
++            net.neoforged.neoforge.server.threading.RegionThreadingHooks.runEntityTickTask(p_8648_, p_8648_::tick);
 +            net.neoforged.neoforge.event.EventHooks.fireEntityTickPost(p_8648_);
 +        }
          this.getProfiler().pop();

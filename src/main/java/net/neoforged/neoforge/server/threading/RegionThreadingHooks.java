@@ -132,6 +132,18 @@ public final class RegionThreadingHooks {
     }
 
     /**
+     * Runs {@code task} in the entity's current region context when the native engine is installed.
+     */
+    public static void runEntityTickTask(Entity entity, Runnable task) {
+        final Optional<RegionThreading> threading = RegionThreadingManager.get();
+        if (threading.isPresent() && threading.get() instanceof RegionThreadingEngine engine) {
+            engine.runInEntityRegion(entity, task);
+        } else {
+            task.run();
+        }
+    }
+
+    /**
      * {@return a snapshot of internal diagnostics, if the native engine is installed}
      */
     public static Optional<RegionThreadingDiagnostics> diagnostics() {
