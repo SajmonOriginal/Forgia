@@ -12,6 +12,7 @@ public record RegionThreadingDiagnostics(
         int regionCount,
         int runningRegionCount,
         int sectionCount,
+        int loadedChunkCount,
         long structuralChangeCount,
         int trackedEntityCount,
         int trackedEntityTaskCount,

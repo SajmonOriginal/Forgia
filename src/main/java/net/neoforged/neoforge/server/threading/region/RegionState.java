@@ -5,20 +5,20 @@
 
 package net.neoforged.neoforge.server.threading.region;
 
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Mutable runtime state for one region coordinate.
  */
 final class RegionState {
     private final RegionCoordinate coordinate;
-    private final Set<RegionSectionCoordinate> sections = ConcurrentHashMap.newKeySet();
+    private final Map<RegionSectionCoordinate, RegionSectionState> sections = new ConcurrentHashMap<>();
     private final RegionTaskQueue taskQueue = new RegionTaskQueue();
     private final RegionTickTimer tickTimer = new RegionTickTimer(System.nanoTime());
     private final RegionTickMetrics tickMetrics = new RegionTickMetrics();
-    private final AtomicBoolean running = new AtomicBoolean();
+    private final AtomicReference<RegionLifecycleState> lifecycleState = new AtomicReference<>(RegionLifecycleState.READY);
     private volatile Thread ownerThread;
 
     RegionState(RegionCoordinate coordinate) {
@@ -29,8 +29,8 @@ final class RegionState {
         return this.coordinate;
     }
 
-    void addSection(RegionSectionCoordinate section) {
-        this.sections.add(section);
+    void addSection(RegionSectionState section) {
+        this.sections.put(section.coordinate(), section);
     }
 
     void removeSection(RegionSectionCoordinate section) {
@@ -39,6 +39,14 @@ final class RegionState {
 
     boolean hasSections() {
         return !this.sections.isEmpty();
+    }
+
+    int chunkCount() {
+        int count = 0;
+        for (final RegionSectionState section : this.sections.values()) {
+            count += section.chunkCount();
+        }
+        return count;
     }
 
     RegionTaskQueue taskQueue() {
@@ -70,18 +78,26 @@ final class RegionState {
     }
 
     boolean tryMarkRunning() {
-        return this.running.compareAndSet(false, true);
+        return this.lifecycleState.compareAndSet(RegionLifecycleState.READY, RegionLifecycleState.TICKING);
     }
 
     void clearRunning() {
-        this.running.set(false);
+        this.lifecycleState.compareAndSet(RegionLifecycleState.TICKING, RegionLifecycleState.READY);
     }
 
     boolean isRunning() {
-        return this.running.get();
+        return this.lifecycleState.get() == RegionLifecycleState.TICKING;
+    }
+
+    boolean isDead() {
+        return this.lifecycleState.get() == RegionLifecycleState.DEAD;
+    }
+
+    void markDead() {
+        this.lifecycleState.set(RegionLifecycleState.DEAD);
     }
 
     boolean isEmpty() {
-        return !this.isRunning() && !this.hasSections() && this.taskQueue.isEmpty();
+        return !this.isDead() && !this.isRunning() && !this.hasSections() && this.taskQueue.isEmpty();
     }
 }

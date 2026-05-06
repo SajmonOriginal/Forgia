@@ -12,10 +12,10 @@ import net.minecraft.server.level.ServerLevel;
  */
 record RegionSectionCoordinate(ServerLevel level, int sectionX, int sectionZ) {
     static RegionSectionCoordinate fromChunk(ServerLevel level, int chunkX, int chunkZ) {
-        return new RegionSectionCoordinate(level, chunkX, chunkZ);
+        return new RegionSectionCoordinate(level, chunkX >> RegionCoordinate.DEFAULT_REGION_CHUNK_SHIFT, chunkZ >> RegionCoordinate.DEFAULT_REGION_CHUNK_SHIFT);
     }
 
     RegionCoordinate regionCoordinate() {
-        return RegionCoordinate.fromChunk(this.level, this.sectionX, this.sectionZ);
+        return new RegionCoordinate(this.level, this.sectionX, this.sectionZ);
     }
 }

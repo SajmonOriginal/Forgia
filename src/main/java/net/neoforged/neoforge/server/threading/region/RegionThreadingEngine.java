@@ -250,7 +250,7 @@ public final class RegionThreadingEngine implements RegionThreading {
     @ApiStatus.Internal
     public void addRegionSection(ServerLevel level, int chunkX, int chunkZ) {
         this.ensureRunning();
-        this.regionizer.addSection(RegionSectionCoordinate.fromChunk(level, chunkX, chunkZ));
+        this.regionizer.addChunk(level, chunkX, chunkZ);
     }
 
     /**
@@ -259,7 +259,7 @@ public final class RegionThreadingEngine implements RegionThreading {
     @ApiStatus.Internal
     public void removeRegionSection(ServerLevel level, int chunkX, int chunkZ) {
         this.ensureRunning();
-        this.regionizer.removeSection(RegionSectionCoordinate.fromChunk(level, chunkX, chunkZ));
+        this.regionizer.removeChunk(level, chunkX, chunkZ);
     }
 
     /**
@@ -306,6 +306,7 @@ public final class RegionThreadingEngine implements RegionThreading {
                 this.regionizer.size(),
                 this.regionizer.runningRegionCount(),
                 this.regionizer.sectionCount(),
+                this.regionizer.loadedChunkCount(),
                 this.regionizer.structuralChangeCount(),
                 this.regionizer.entityCount(),
                 this.entityTasks.size(),
