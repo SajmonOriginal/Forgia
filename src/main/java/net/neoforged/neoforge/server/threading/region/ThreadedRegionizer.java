@@ -5,9 +5,13 @@
 
 package net.neoforged.neoforge.server.threading.region;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -215,6 +219,7 @@ final class ThreadedRegionizer {
 
     void requestSplitCheck(RegionState region) {
         this.splitCheckRequestCount.incrementAndGet();
+        this.splitRegionIfNeeded(region);
     }
 
     void requestMergeCheck(RegionState region) {
@@ -253,6 +258,75 @@ final class ThreadedRegionizer {
         this.regions.replaceAll((coordinate, region) -> region == source ? target : region);
         this.entities.replaceAll((entity, region) -> region == source ? target : region);
         this.structuralChangeCount.incrementAndGet();
+    }
+
+    private void splitRegionIfNeeded(RegionState region) {
+        if (region.isRunning() || region.hasQueuedTasks()) {
+            return;
+        }
+
+        final List<List<RegionSectionState>> components = this.connectedComponents(region.sections());
+        if (components.size() <= 1) {
+            return;
+        }
+
+        this.regions.values().removeIf(value -> value == region);
+        region.clearSections();
+        for (int i = 0; i < components.size(); ++i) {
+            final List<RegionSectionState> component = components.get(i);
+            final RegionState splitRegion = i == 0 ? region : new RegionState(component.get(0).coordinate().regionCoordinate());
+            for (final RegionSectionState section : component) {
+                splitRegion.addSection(section);
+                this.sectionRegions.put(section.coordinate(), splitRegion);
+                this.regions.put(section.coordinate().regionCoordinate(), splitRegion);
+            }
+        }
+
+        this.entities.replaceAll((entity, currentRegion) -> {
+            if (currentRegion != region || !(entity.level() instanceof ServerLevel level)) {
+                return currentRegion;
+            }
+            final RegionState splitRegion = this.get(RegionCoordinate.fromBlock(level, entity.blockPosition()));
+            return splitRegion == null ? currentRegion : splitRegion;
+        });
+        this.structuralChangeCount.incrementAndGet();
+    }
+
+    private List<List<RegionSectionState>> connectedComponents(Collection<RegionSectionState> regionSections) {
+        final Map<RegionSectionCoordinate, RegionSectionState> remaining = new ConcurrentHashMap<>();
+        for (final RegionSectionState section : regionSections) {
+            remaining.put(section.coordinate(), section);
+        }
+
+        final List<List<RegionSectionState>> components = new ArrayList<>();
+        while (!remaining.isEmpty()) {
+            final RegionSectionState first = remaining.values().iterator().next();
+            remaining.remove(first.coordinate());
+            final List<RegionSectionState> component = new ArrayList<>();
+            final Queue<RegionSectionState> queue = new ArrayDeque<>();
+            queue.add(first);
+
+            while (!queue.isEmpty()) {
+                final RegionSectionState section = queue.remove();
+                component.add(section);
+                for (int dz = -REGION_SECTION_MERGE_RADIUS; dz <= REGION_SECTION_MERGE_RADIUS; ++dz) {
+                    for (int dx = -REGION_SECTION_MERGE_RADIUS; dx <= REGION_SECTION_MERGE_RADIUS; ++dx) {
+                        if ((dx | dz) == 0) {
+                            continue;
+                        }
+                        final RegionSectionCoordinate neighbour = new RegionSectionCoordinate(section.coordinate().level(), section.coordinate().sectionX() + dx, section.coordinate().sectionZ() + dz);
+                        final RegionSectionState neighbourSection = remaining.remove(neighbour);
+                        if (neighbourSection != null) {
+                            queue.add(neighbourSection);
+                        }
+                    }
+                }
+            }
+
+            components.add(component);
+        }
+
+        return components;
     }
 
     private Set<RegionState> uniqueRegions() {
