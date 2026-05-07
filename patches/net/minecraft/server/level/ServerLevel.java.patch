@@ -61,7 +61,7 @@
          }
 @@ -412,7 +_,9 @@
                              }
- 
+
                              profilerfiller.push("tick");
 -                            this.guardEntityTick(this::tickNonPassenger, p_308566_);
 +                            if (!p_308566_.isRemoved() && !(p_308566_ instanceof net.neoforged.neoforge.entity.PartEntity)) {
@@ -114,7 +114,7 @@
 @@ -714,15 +_,19 @@
                  .broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, this.thunderLevel), this.dimension());
          }
- 
+
 +        /* The function in use here has been replaced in order to only send the weather info to players in the correct dimension,
 +         * rather than to all players on the server. This is what causes the client-side rain, as the
 +         * client believes that it has started raining locally, rather than in another dimension.
@@ -127,14 +127,14 @@
 -                this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.START_RAINING, 0.0F));
 +                this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.START_RAINING, 0.0F), this.dimension());
              }
- 
+
 -            this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, this.rainLevel));
 -            this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, this.thunderLevel));
 +            this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, this.rainLevel), this.dimension());
 +            this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, this.thunderLevel), this.dimension());
          }
      }
- 
+
 @@ -758,7 +_,11 @@
          p_8648_.tickCount++;
          this.getProfiler().push(() -> BuiltInRegistries.ENTITY_TYPE.getKey(p_8648_.getType()).toString());
@@ -146,7 +146,7 @@
 +            net.neoforged.neoforge.event.EventHooks.fireEntityTickPost(p_8648_);
 +        }
          this.getProfiler().pop();
- 
+
          for (Entity entity : p_8648_.getPassengers()) {
 @@ -775,7 +_,7 @@
              ProfilerFiller profilerfiller = this.getProfiler();
@@ -167,10 +167,10 @@
 +            }
          }
      }
- 
+
 @@ -896,6 +_,7 @@
      }
- 
+
      private void addPlayer(ServerPlayer p_8854_) {
 +        if (net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.EntityJoinLevelEvent(p_8854_, this)).isCanceled()) return;
          Entity entity = this.getEntities().get(p_8854_.getUUID());
@@ -179,12 +179,12 @@
 @@ -903,7 +_,8 @@
              this.removePlayerImmediately((ServerPlayer)entity, Entity.RemovalReason.DISCARDED);
          }
- 
+
 -        this.entityManager.addNewEntity(p_8854_);
 +        this.entityManager.addNewEntityWithoutEvent(p_8854_);
 +        p_8854_.onAddedToLevel();
      }
- 
+
      private boolean addEntity(Entity p_8873_) {
 @@ -911,7 +_,12 @@
              LOGGER.warn("Tried to add entity {} but it was marked as removed already", EntityType.getKey(p_8873_.getType()));
@@ -199,7 +199,7 @@
 +            }
          }
      }
- 
+
 @@ -959,6 +_,12 @@
          float p_263390_,
          long p_263403_
@@ -227,21 +227,21 @@
              .getPlayerList()
              .broadcast(
 @@ -1019,6 +_,7 @@
- 
+
      @Override
      public void gameEvent(Holder<GameEvent> p_316597_, Vec3 p_215042_, GameEvent.Context p_215043_) {
 +        if (!net.neoforged.neoforge.common.CommonHooks.onVanillaGameEvent(this, p_316597_, p_215042_, p_215043_)) return;
          this.gameEventDispatcher.post(p_316597_, p_215042_, p_215043_);
      }
- 
+
 @@ -1057,11 +_,16 @@
- 
+
      @Override
      public void updateNeighborsAt(BlockPos p_215045_, Block p_215046_) {
 +        net.neoforged.neoforge.event.EventHooks.onNeighborNotify(this, p_215045_, this.getBlockState(p_215045_), java.util.EnumSet.allOf(Direction.class), false).isCanceled();
          this.neighborUpdater.updateNeighborsAtExceptFromFacing(p_215045_, p_215046_, null);
      }
- 
+
      @Override
      public void updateNeighborsAtExceptFromFacing(BlockPos p_215052_, Block p_215053_, Direction p_215054_) {
 +        java.util.EnumSet<Direction> directions = java.util.EnumSet.allOf(Direction.class);
@@ -250,11 +250,46 @@
 +            return;
          this.neighborUpdater.updateNeighborsAtExceptFromFacing(p_215052_, p_215053_, p_215054_);
      }
- 
+
+@@ -1145,19 +_,21 @@
+         while (!this.blockEvents.isEmpty()) {
+             BlockEventData blockeventdata = this.blockEvents.removeFirst();
+             if (this.shouldTickBlocksAt(blockeventdata.pos())) {
+-                if (this.doBlockEvent(blockeventdata)) {
+-                    this.server
+-                        .getPlayerList()
+-                        .broadcast(
+-                            null,
+-                            (double)blockeventdata.pos().getX(),
+-                            (double)blockeventdata.pos().getY(),
+-                            (double)blockeventdata.pos().getZ(),
+-                            64.0,
+-                            this.dimension(),
+-                            new ClientboundBlockEventPacket(blockeventdata.pos(), blockeventdata.block(), blockeventdata.paramA(), blockeventdata.paramB())
+-                        );
+-                }
++                net.neoforged.neoforge.server.threading.RegionThreadingHooks.runBlockTickTask(this, blockeventdata.pos(), () -> {
++                    if (this.doBlockEvent(blockeventdata)) {
++                        this.server
++                            .getPlayerList()
++                            .broadcast(
++                                null,
++                                (double)blockeventdata.pos().getX(),
++                                (double)blockeventdata.pos().getY(),
++                                (double)blockeventdata.pos().getZ(),
++                                64.0,
++                                this.dimension(),
++                                new ClientboundBlockEventPacket(blockeventdata.pos(), blockeventdata.block(), blockeventdata.paramA(), blockeventdata.paramB())
++                            );
++                    }
++                });
+             } else {
+                 this.blockEventsToReschedule.add(blockeventdata);
+             }
 @@ -1713,8 +_,8 @@
                  ServerLevel.this.navigatingMobs.add(mob);
              }
- 
+
 -            if (p_143371_ instanceof EnderDragon enderdragon) {
 -                for (EnderDragonPart enderdragonpart : enderdragon.getSubEntities()) {
 +            if (p_143371_.isMultipartEntity()) {
@@ -270,10 +305,10 @@
 +                              "onTrackingStart called during navigation iteration", new IllegalStateException("onTrackingStart called during navigation iteration")
                      );
                  }
- 
+
                  ServerLevel.this.navigatingMobs.remove(mob);
              }
- 
+
 -            if (p_143375_ instanceof EnderDragon enderdragon) {
 -                for (EnderDragonPart enderdragonpart : enderdragon.getSubEntities()) {
 +            if (p_143375_.isMultipartEntity()) {
@@ -281,13 +316,13 @@
                      ServerLevel.this.dragonParts.remove(enderdragonpart.getId());
                  }
              }
- 
+
              p_143375_.updateDynamicGameEventListener(DynamicGameEventListener::remove);
 +
 +            p_143375_.onRemovedFromLevel();
 +            net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent(p_143375_, ServerLevel.this));
          }
- 
+
          public void onSectionChange(Entity p_215086_) {
              p_215086_.updateDynamicGameEventListener(DynamicGameEventListener::move);
          }
