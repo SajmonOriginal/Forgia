@@ -168,7 +168,7 @@ public final class RegionThreadingEngine implements RegionThreading {
             return;
         }
         try {
-            this.runInGlobalRegion(this.globalRegion.taskQueue()::drain);
+            this.runInGlobalRegionOwned(this.globalRegion.taskQueue()::drain);
         } finally {
             this.globalRegion.clearRunning();
         }
@@ -179,6 +179,18 @@ public final class RegionThreadingEngine implements RegionThreading {
      */
     @ApiStatus.Internal
     public void runInGlobalRegion(Runnable task) {
+        if (!this.globalRegion.tryMarkRunning()) {
+            RegionOwnershipViolationHandler.handle("Global region is already running on another thread");
+            return;
+        }
+        try {
+            this.runInGlobalRegionOwned(task);
+        } finally {
+            this.globalRegion.clearRunning();
+        }
+    }
+
+    private void runInGlobalRegionOwned(Runnable task) {
         this.globalRegion.beginOwnership();
         try {
             this.runWithContext(new BasicRegionThreadingContext(RegionThreadingContext.Kind.GLOBAL_REGION, null, null, null), task);
@@ -208,7 +220,7 @@ public final class RegionThreadingEngine implements RegionThreading {
         final RegionCoordinate coordinate = RegionCoordinate.fromBlock(level, entity.blockPosition());
         final RegionState region = this.regionizer.moveEntity(entity, coordinate);
         if (!region.tryMarkRunning()) {
-            task.run();
+            RegionOwnershipViolationHandler.handle("Entity region is already running for " + entity);
             return;
         }
 
@@ -235,7 +247,7 @@ public final class RegionThreadingEngine implements RegionThreading {
         final RegionCoordinate coordinate = RegionCoordinate.fromBlock(level, pos);
         final RegionState region = this.regionizer.getOrCreate(coordinate);
         if (!region.tryMarkRunning()) {
-            task.run();
+            RegionOwnershipViolationHandler.handle("Block region is already running at " + pos);
             return;
         }
 
