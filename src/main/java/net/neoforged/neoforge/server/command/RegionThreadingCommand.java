@@ -36,6 +36,8 @@ final class RegionThreadingCommand {
                 + ", sections=" + diagnostics.sectionCount()
                 + ", loadedChunks=" + diagnostics.loadedChunkCount()
                 + ", structuralChanges=" + diagnostics.structuralChangeCount()
+                + ", splitChecks=" + diagnostics.splitCheckRequestCount()
+                + ", mergeChecks=" + diagnostics.mergeCheckRequestCount()
                 + ", trackedEntities=" + diagnostics.trackedEntityCount()
                 + ", entityTasks=" + diagnostics.trackedEntityTaskCount()
                 + ", workerThreads=" + diagnostics.workerThreadCount()

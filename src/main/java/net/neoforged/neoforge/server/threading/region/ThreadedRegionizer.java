@@ -18,12 +18,16 @@ import net.minecraft.world.entity.Entity;
  * Minimal native regionizer facade while Folia's split/merge algorithm is ported.
  */
 final class ThreadedRegionizer {
+    private static final int REGION_SECTION_MERGE_RADIUS = 1;
+
     private final Map<RegionCoordinate, RegionState> regions = new ConcurrentHashMap<>();
     private final Map<RegionSectionCoordinate, RegionSectionState> sections = new ConcurrentHashMap<>();
     private final Map<RegionSectionCoordinate, RegionState> sectionRegions = new ConcurrentHashMap<>();
     private final Map<Entity, RegionState> entities = new ConcurrentHashMap<>();
     private final Map<Entity, ServerLevel> entityLevels = new ConcurrentHashMap<>();
     private final AtomicLong structuralChangeCount = new AtomicLong();
+    private final AtomicLong splitCheckRequestCount = new AtomicLong();
+    private final AtomicLong mergeCheckRequestCount = new AtomicLong();
     private final StampedLock regionLock = new StampedLock();
     private Thread writeLockOwner;
 
@@ -45,6 +49,7 @@ final class ThreadedRegionizer {
             final boolean wasEmpty = section.isEmpty();
             if (section.addChunk(chunkX, chunkZ) && wasEmpty) {
                 region.addSection(section);
+                this.requestMergeCheckIfNeeded(coordinate, region);
                 this.structuralChangeCount.incrementAndGet();
             }
             return region;
@@ -63,6 +68,7 @@ final class ThreadedRegionizer {
                 this.sections.remove(coordinate, section);
                 if (region != null) {
                     region.removeSection(coordinate);
+                    this.requestSplitCheck(region);
                     this.structuralChangeCount.incrementAndGet();
                     this.removeIfEmpty(region);
                 }
@@ -193,12 +199,37 @@ final class ThreadedRegionizer {
         return this.structuralChangeCount.get();
     }
 
+    long splitCheckRequestCount() {
+        return this.splitCheckRequestCount.get();
+    }
+
+    long mergeCheckRequestCount() {
+        return this.mergeCheckRequestCount.get();
+    }
+
     void requestSplitCheck(RegionState region) {
-        this.structuralChangeCount.incrementAndGet();
+        this.splitCheckRequestCount.incrementAndGet();
     }
 
     void requestMergeCheck(RegionState region) {
-        this.structuralChangeCount.incrementAndGet();
+        this.mergeCheckRequestCount.incrementAndGet();
+    }
+
+    private void requestMergeCheckIfNeeded(RegionSectionCoordinate coordinate, RegionState region) {
+        for (int dz = -REGION_SECTION_MERGE_RADIUS; dz <= REGION_SECTION_MERGE_RADIUS; ++dz) {
+            for (int dx = -REGION_SECTION_MERGE_RADIUS; dx <= REGION_SECTION_MERGE_RADIUS; ++dx) {
+                if ((dx | dz) == 0) {
+                    continue;
+                }
+
+                final RegionSectionCoordinate neighbour = new RegionSectionCoordinate(coordinate.level(), coordinate.sectionX() + dx, coordinate.sectionZ() + dz);
+                final RegionState neighbourRegion = this.sectionRegions.get(neighbour);
+                if (neighbourRegion != null && neighbourRegion != region) {
+                    this.requestMergeCheck(region);
+                    return;
+                }
+            }
+        }
     }
 
     int sectionCount() {
