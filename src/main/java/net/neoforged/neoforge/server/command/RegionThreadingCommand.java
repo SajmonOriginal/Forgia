@@ -44,6 +44,7 @@ final class RegionThreadingCommand {
                 + ", workerExecution=" + diagnostics.workerExecutionEnabled()
                 + ", globalWorkerExecution=" + diagnostics.globalWorkerExecutionEnabled()
                 + ", globalRunning=" + diagnostics.globalRegionRunning()
+                + ", rejectedWorkerTasks=" + diagnostics.rejectedWorkerTaskCount()
                 + ", ownershipViolations=" + NeoForgeConfig.SERVER.regionThreadingOwnershipViolationMode.get()
                 + ", ownershipViolationCount=" + diagnostics.ownershipViolationCount()
                 + ", defaultModSupport=" + RegionThreadingCompatibility.defaultSupport()

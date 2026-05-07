@@ -34,9 +34,10 @@ final class RegionWorkerPool implements AutoCloseable {
         return this.threadCount;
     }
 
-    void execute(String description, Runnable task) {
+    boolean execute(String description, Runnable task) {
         if (this.closed) {
-            throw new IllegalStateException("Region worker pool is closed");
+            LOGGER.warn("Rejected region worker task after shutdown: {}", description);
+            return false;
         }
         this.executor.execute(() -> {
             try {
@@ -46,6 +47,7 @@ final class RegionWorkerPool implements AutoCloseable {
                 throw throwable;
             }
         });
+        return true;
     }
 
     @Override

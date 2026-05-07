@@ -8,6 +8,7 @@ package net.neoforged.neoforge.server.threading.region;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -39,6 +40,7 @@ public final class RegionThreadingEngine implements RegionThreading {
     private final EntityRegionScheduler entityScheduler = new EngineEntityRegionScheduler(this);
     private final boolean workerExecutionEnabled;
     private final boolean globalWorkerExecutionEnabled;
+    private final AtomicLong rejectedWorkerTaskCount = new AtomicLong();
     private volatile boolean shutdown;
 
     public RegionThreadingEngine(int workerThreads, boolean workerExecutionEnabled, boolean globalWorkerExecutionEnabled) {
@@ -157,7 +159,9 @@ public final class RegionThreadingEngine implements RegionThreading {
         }
         final long now = System.nanoTime();
         if (this.globalWorkerExecutionEnabled) {
-            this.workerPool.execute("global region drain", () -> this.globalTickRunner.runIfDue(this.globalRegion, now, this::drainGlobalRegionState));
+            if (!this.workerPool.execute("global region drain", () -> this.globalTickRunner.runIfDue(this.globalRegion, now, this::drainGlobalRegionState))) {
+                this.rejectedWorkerTaskCount.incrementAndGet();
+            }
             return;
         }
         this.globalTickRunner.runIfDue(this.globalRegion, now, this::drainGlobalRegionState);
@@ -382,6 +386,7 @@ public final class RegionThreadingEngine implements RegionThreading {
                 this.workerExecutionEnabled,
                 this.globalWorkerExecutionEnabled,
                 this.globalRegion.isRunning(),
+                this.rejectedWorkerTaskCount.get(),
                 RegionOwnershipViolationHandler.violationCount(),
                 this.globalRegion.tickMetrics().tickCount(),
                 this.globalRegion.tickMetrics().lastTickDurationNanos(),
@@ -435,10 +440,12 @@ public final class RegionThreadingEngine implements RegionThreading {
     }
 
     private void submitRegionTick(RegionState region, long nowNanos) {
-        this.workerPool.execute("region drain " + region.coordinate(), () -> {
+        if (!this.workerPool.execute("region drain " + region.coordinate(), () -> {
             this.tickRunner.runIfDue(region, nowNanos, () -> this.drainRegionState(region));
             this.regionizer.removeIfEmpty(region);
-        });
+        })) {
+            this.rejectedWorkerTaskCount.incrementAndGet();
+        }
     }
 
     private void runWithContext(BasicRegionThreadingContext context, Runnable task) {
