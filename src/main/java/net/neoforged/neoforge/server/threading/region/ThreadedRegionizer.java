@@ -129,6 +129,7 @@ final class ThreadedRegionizer {
     }
 
     void removeIfEmpty(RegionState region) {
+        this.recalculateIfPending(region);
         if (region.isEmpty()) {
             if (this.regions.values().removeIf(value -> value == region)) {
                 region.markDead();
@@ -246,6 +247,8 @@ final class ThreadedRegionizer {
 
     private void mergeRegions(RegionState target, RegionState source) {
         if (target.isRunning() || source.isRunning() || target.hasQueuedTasks() || source.hasQueuedTasks()) {
+            target.markPendingRecalculation();
+            source.markPendingRecalculation();
             return;
         }
 
@@ -262,6 +265,7 @@ final class ThreadedRegionizer {
 
     private void splitRegionIfNeeded(RegionState region) {
         if (region.isRunning() || region.hasQueuedTasks()) {
+            region.markPendingRecalculation();
             return;
         }
 
@@ -290,6 +294,17 @@ final class ThreadedRegionizer {
             return splitRegion == null ? currentRegion : splitRegion;
         });
         this.structuralChangeCount.incrementAndGet();
+    }
+
+    private void recalculateIfPending(RegionState region) {
+        if (!region.consumePendingRecalculation() || region.isRunning() || region.hasQueuedTasks() || region.isDead()) {
+            return;
+        }
+
+        for (final RegionSectionState section : region.sections()) {
+            this.requestMergeCheckIfNeeded(section.coordinate(), region);
+        }
+        this.splitRegionIfNeeded(region);
     }
 
     private List<List<RegionSectionState>> connectedComponents(Collection<RegionSectionState> regionSections) {

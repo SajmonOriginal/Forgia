@@ -8,6 +8,7 @@ package net.neoforged.neoforge.server.threading.region;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -20,6 +21,7 @@ final class RegionState {
     private final RegionTickTimer tickTimer = new RegionTickTimer(System.nanoTime());
     private final RegionTickMetrics tickMetrics = new RegionTickMetrics();
     private final AtomicReference<RegionLifecycleState> lifecycleState = new AtomicReference<>(RegionLifecycleState.READY);
+    private final AtomicBoolean pendingRecalculation = new AtomicBoolean();
     private volatile Thread ownerThread;
 
     RegionState(RegionCoordinate coordinate) {
@@ -100,6 +102,14 @@ final class RegionState {
 
     boolean isRunning() {
         return this.lifecycleState.get() == RegionLifecycleState.TICKING;
+    }
+
+    void markPendingRecalculation() {
+        this.pendingRecalculation.set(true);
+    }
+
+    boolean consumePendingRecalculation() {
+        return this.pendingRecalculation.compareAndSet(true, false);
     }
 
     boolean isDead() {
