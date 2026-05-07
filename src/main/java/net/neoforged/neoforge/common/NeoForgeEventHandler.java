@@ -20,7 +20,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ChunkPos;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.LogicalSide;
@@ -92,18 +91,8 @@ public class NeoForgeEventHandler {
 
     @SubscribeEvent
     public void onChunkUnload(ChunkEvent.Unload event) {
-        if (event.getLevel() instanceof ServerLevel serverLevel) {
-            final ChunkPos pos = event.getChunk().getPos();
-            RegionThreadingHooks.removeRegionSection(serverLevel, pos.x, pos.z);
+        if (event.getLevel() instanceof ServerLevel) {
             FarmlandWaterManager.removeTickets(event.getChunk());
-        }
-    }
-
-    @SubscribeEvent
-    public void onChunkLoad(ChunkEvent.Load event) {
-        if (event.getLevel() instanceof ServerLevel serverLevel) {
-            final ChunkPos pos = event.getChunk().getPos();
-            RegionThreadingHooks.addRegionSection(serverLevel, pos.x, pos.z);
         }
     }
 
