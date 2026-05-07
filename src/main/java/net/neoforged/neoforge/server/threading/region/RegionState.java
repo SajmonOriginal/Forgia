@@ -5,6 +5,7 @@
 
 package net.neoforged.neoforge.server.threading.region;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,8 +34,16 @@ final class RegionState {
         this.sections.put(section.coordinate(), section);
     }
 
+    Collection<RegionSectionState> sections() {
+        return this.sections.values();
+    }
+
     void removeSection(RegionSectionCoordinate section) {
         this.sections.remove(section);
+    }
+
+    void clearSections() {
+        this.sections.clear();
     }
 
     boolean hasSections() {
@@ -51,6 +60,10 @@ final class RegionState {
 
     RegionTaskQueue taskQueue() {
         return this.taskQueue;
+    }
+
+    boolean hasQueuedTasks() {
+        return !this.taskQueue.isEmpty();
     }
 
     void clearTasks() {

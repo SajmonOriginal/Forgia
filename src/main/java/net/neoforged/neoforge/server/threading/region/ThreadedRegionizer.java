@@ -6,7 +6,9 @@
 package net.neoforged.neoforge.server.threading.region;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.StampedLock;
@@ -32,6 +34,10 @@ final class ThreadedRegionizer {
     private Thread writeLockOwner;
 
     RegionState getOrCreate(RegionCoordinate coordinate) {
+        final RegionState existing = this.regions.get(coordinate);
+        if (existing != null) {
+            return existing;
+        }
         return this.regions.computeIfAbsent(coordinate, RegionState::new);
     }
 
@@ -115,12 +121,12 @@ final class ThreadedRegionizer {
     }
 
     void forEach(Consumer<RegionState> action) {
-        this.regions.values().forEach(action);
+        this.uniqueRegions().forEach(action);
     }
 
     void removeIfEmpty(RegionState region) {
         if (region.isEmpty()) {
-            if (this.regions.remove(region.coordinate(), region)) {
+            if (this.regions.values().removeIf(value -> value == region)) {
                 region.markDead();
             }
         }
@@ -192,7 +198,7 @@ final class ThreadedRegionizer {
     }
 
     int size() {
-        return this.regions.size();
+        return this.uniqueRegions().size();
     }
 
     long structuralChangeCount() {
@@ -226,10 +232,31 @@ final class ThreadedRegionizer {
                 final RegionState neighbourRegion = this.sectionRegions.get(neighbour);
                 if (neighbourRegion != null && neighbourRegion != region) {
                     this.requestMergeCheck(region);
+                    this.mergeRegions(region, neighbourRegion);
                     return;
                 }
             }
         }
+    }
+
+    private void mergeRegions(RegionState target, RegionState source) {
+        if (target.isRunning() || source.isRunning() || target.hasQueuedTasks() || source.hasQueuedTasks()) {
+            return;
+        }
+
+        for (final RegionSectionState section : source.sections()) {
+            target.addSection(section);
+            this.sectionRegions.put(section.coordinate(), target);
+        }
+        source.clearSections();
+        source.markDead();
+        this.regions.replaceAll((coordinate, region) -> region == source ? target : region);
+        this.entities.replaceAll((entity, region) -> region == source ? target : region);
+        this.structuralChangeCount.incrementAndGet();
+    }
+
+    private Set<RegionState> uniqueRegions() {
+        return new HashSet<>(this.regions.values());
     }
 
     int sectionCount() {
@@ -250,7 +277,7 @@ final class ThreadedRegionizer {
 
     int runningRegionCount() {
         int count = 0;
-        for (final RegionState region : this.regions.values()) {
+        for (final RegionState region : this.uniqueRegions()) {
             if (region.isRunning()) {
                 ++count;
             }
@@ -260,7 +287,7 @@ final class ThreadedRegionizer {
 
     long totalRegionTickCount() {
         long count = 0L;
-        for (final RegionState region : this.regions.values()) {
+        for (final RegionState region : this.uniqueRegions()) {
             count += region.tickMetrics().tickCount();
         }
         return count;
@@ -268,13 +295,13 @@ final class ThreadedRegionizer {
 
     long maxRegionLastTickDurationNanos() {
         long max = 0L;
-        for (final RegionState region : this.regions.values()) {
+        for (final RegionState region : this.uniqueRegions()) {
             max = Math.max(max, region.tickMetrics().lastTickDurationNanos());
         }
         return max;
     }
 
     Collection<RegionState> regions() {
-        return this.regions.values();
+        return this.uniqueRegions();
     }
 }

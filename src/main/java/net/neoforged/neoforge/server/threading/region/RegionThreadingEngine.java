@@ -73,7 +73,7 @@ public final class RegionThreadingEngine implements RegionThreading {
         }
 
         final RegionCoordinate coordinate = RegionCoordinate.fromBlock(level, pos);
-        return basicContext.regionCoordinate.equals(coordinate) && basicContext.regionState != null && basicContext.regionState.isOwnedByCurrentThread();
+        return basicContext.regionState != null && this.regionizer.get(coordinate) == basicContext.regionState && basicContext.regionState.isOwnedByCurrentThread();
     }
 
     @Override
