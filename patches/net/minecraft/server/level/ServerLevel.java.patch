@@ -200,6 +200,14 @@
          }
      }
 
+@@ -925,6 +_,7 @@
+     }
+
+     public void unload(LevelChunk p_8713_) {
++        net.neoforged.neoforge.server.threading.RegionThreadingHooks.removeRegionSection(this, p_8713_.getPos().x, p_8713_.getPos().z);
+         p_8713_.clearAllBlockEntities();
+         p_8713_.unregisterTickContainerFromLevel(this);
+     }
 @@ -959,6 +_,12 @@
          float p_263390_,
          long p_263403_
@@ -286,6 +294,14 @@
              } else {
                  this.blockEventsToReschedule.add(blockeventdata);
              }
+@@ -1612,6 +_,7 @@
+     }
+
+     public void startTickingChunk(LevelChunk p_184103_) {
++        net.neoforged.neoforge.server.threading.RegionThreadingHooks.addRegionSection(this, p_184103_.getPos().x, p_184103_.getPos().z);
+         p_184103_.unpackTicks(this.getLevelData().getGameTime());
+     }
+
 @@ -1713,8 +_,8 @@
                  ServerLevel.this.navigatingMobs.add(mob);
              }
