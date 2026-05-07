@@ -223,6 +223,33 @@ public final class RegionThreadingEngine implements RegionThreading {
     }
 
     /**
+     * Runs {@code task} while the current thread owns the region containing {@code pos}.
+     */
+    @ApiStatus.Internal
+    public void runInBlockRegion(ServerLevel level, BlockPos pos, Runnable task) {
+        if (this.isOwnedByCurrentRegion(level, pos)) {
+            task.run();
+            return;
+        }
+
+        final RegionCoordinate coordinate = RegionCoordinate.fromBlock(level, pos);
+        final RegionState region = this.regionizer.getOrCreate(coordinate);
+        if (!region.tryMarkRunning()) {
+            task.run();
+            return;
+        }
+
+        try {
+            region.beginOwnership();
+            this.runWithContext(new BasicRegionThreadingContext(RegionThreadingContext.Kind.REGION, level, coordinate, region), task);
+        } finally {
+            region.endOwnership();
+            region.clearRunning();
+            this.regionizer.removeIfEmpty(region);
+        }
+    }
+
+    /**
      * Drains tasks queued to the region that owns {@code pos}.
      */
     @ApiStatus.Internal

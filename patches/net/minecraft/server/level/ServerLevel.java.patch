@@ -27,7 +27,7 @@
 +        // Providing a fully initialized ServerLevel instance for the ServerLevelEvent.CustomSpawners
 +        this.customSpawners = net.neoforged.neoforge.event.EventHooks.getCustomSpawners(this, p_215008_);
      }
- 
+
      @Deprecated
 @@ -342,7 +_,7 @@
          if (this.sleepStatus.areEnoughSleeping(i) && this.sleepStatus.areEnoughDeepSleeping(i, this.players)) {
@@ -36,10 +36,22 @@
 -                this.setDayTime(j - j % 24000L);
 +                this.setDayTime(net.neoforged.neoforge.event.EventHooks.onSleepFinished(this, j - j % 24000L, this.getDayTime()));
              }
- 
+
              this.wakeUpAllPlayers();
+@@ -360,9 +_,9 @@
+         if (!this.isDebug() && flag) {
+             long k = this.getGameTime();
+             profilerfiller.push("blockTicks");
+-            this.blockTicks.tick(k, 65536, this::tickBlock);
++            this.blockTicks.tick(k, 65536, (pos, block) -> net.neoforged.neoforge.server.threading.RegionThreadingHooks.runBlockTickTask(this, pos, () -> this.tickBlock(pos, block)));
+             profilerfiller.popPush("fluidTicks");
+-            this.fluidTicks.tick(k, 65536, this::tickFluid);
++            this.fluidTicks.tick(k, 65536, (pos, fluid) -> net.neoforged.neoforge.server.threading.RegionThreadingHooks.runBlockTickTask(this, pos, () -> this.tickFluid(pos, fluid)));
+             profilerfiller.pop();
+         }
+
 @@ -380,7 +_,7 @@
- 
+
          this.handlingTick = false;
          profilerfiller.pop();
 -        boolean flag1 = !this.players.isEmpty() || !this.getForcedChunks().isEmpty();
@@ -76,6 +88,21 @@
                  if (flag1) {
                      SkeletonHorse skeletonhorse = EntityType.SKELETON_HORSE.create(this);
                      if (skeletonhorse != null) {
+@@ -520,12 +_,12 @@
+                         profilerfiller.push("randomTick");
+                         BlockState blockstate = levelchunksection.getBlockState(blockpos1.getX() - i, blockpos1.getY() - k, blockpos1.getZ() - j);
+                         if (blockstate.isRandomlyTicking()) {
+-                            blockstate.randomTick(this, blockpos1, this.random);
++                            net.neoforged.neoforge.server.threading.RegionThreadingHooks.runBlockTickTask(this, blockpos1, () -> blockstate.randomTick(this, blockpos1, this.random));
+                         }
+
+                         FluidState fluidstate = blockstate.getFluidState();
+                         if (fluidstate.isRandomlyTicking()) {
+-                            fluidstate.randomTick(this, blockpos1, this.random);
++                            net.neoforged.neoforge.server.threading.RegionThreadingHooks.runBlockTickTask(this, blockpos1, () -> fluidstate.randomTick(this, blockpos1, this.random));
+                         }
+
+                         profilerfiller.pop();
 @@ -542,6 +_,7 @@
          BlockPos blockpos = this.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, p_295060_);
          BlockPos blockpos1 = blockpos.below();

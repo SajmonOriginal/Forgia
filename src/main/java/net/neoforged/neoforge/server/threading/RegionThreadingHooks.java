@@ -6,6 +6,7 @@
 package net.neoforged.neoforge.server.threading;
 
 import java.util.Optional;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.neoforged.neoforge.server.threading.region.RegionThreadingDiagnostics;
@@ -138,6 +139,18 @@ public final class RegionThreadingHooks {
         final Optional<RegionThreading> threading = RegionThreadingManager.get();
         if (threading.isPresent() && threading.get() instanceof RegionThreadingEngine engine) {
             engine.runInEntityRegion(entity, task);
+        } else {
+            task.run();
+        }
+    }
+
+    /**
+     * Runs {@code task} in the owning block region context when the native engine is installed.
+     */
+    public static void runBlockTickTask(ServerLevel level, BlockPos pos, Runnable task) {
+        final Optional<RegionThreading> threading = RegionThreadingManager.get();
+        if (threading.isPresent() && threading.get() instanceof RegionThreadingEngine engine) {
+            engine.runInBlockRegion(level, pos, task);
         } else {
             task.run();
         }

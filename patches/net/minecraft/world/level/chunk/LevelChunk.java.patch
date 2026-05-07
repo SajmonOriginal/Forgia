@@ -122,7 +122,7 @@
      class BoundTickingBlockEntity<T extends BlockEntity> implements TickingBlockEntity {
          private final T blockEntity;
          private final BlockEntityTicker<T> ticker;
-@@ -679,6 +_,7 @@
+@@ -679,10 +_,15 @@
                  if (LevelChunk.this.isTicking(blockpos)) {
                      try {
                          ProfilerFiller profilerfiller = LevelChunk.this.level.getProfiler();
@@ -130,6 +130,15 @@
                          profilerfiller.push(this::getType);
                          BlockState blockstate = LevelChunk.this.getBlockState(blockpos);
                          if (this.blockEntity.getType().isValid(blockstate)) {
+-                            this.ticker.tick(LevelChunk.this.level, this.blockEntity.getBlockPos(), blockstate, this.blockEntity);
++                            if (LevelChunk.this.level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
++                                net.neoforged.neoforge.server.threading.RegionThreadingHooks.runBlockTickTask(serverLevel, this.blockEntity.getBlockPos(), () -> this.ticker.tick(LevelChunk.this.level, this.blockEntity.getBlockPos(), blockstate, this.blockEntity));
++                            } else {
++                                this.ticker.tick(LevelChunk.this.level, this.blockEntity.getBlockPos(), blockstate, this.blockEntity);
++                            }
+                             this.loggedInvalidBlockState = false;
+                         } else if (!this.loggedInvalidBlockState) {
+                             this.loggedInvalidBlockState = true;
 @@ -700,7 +_,15 @@
                          CrashReport crashreport = CrashReport.forThrowable(throwable, "Ticking block entity");
                          CrashReportCategory crashreportcategory = crashreport.addCategory("Block entity being ticked");
