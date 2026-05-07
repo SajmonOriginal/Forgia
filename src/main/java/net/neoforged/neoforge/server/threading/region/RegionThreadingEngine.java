@@ -157,7 +157,7 @@ public final class RegionThreadingEngine implements RegionThreading {
         }
         final long now = System.nanoTime();
         if (this.globalWorkerExecutionEnabled) {
-            this.workerPool.execute(() -> this.globalTickRunner.runIfDue(this.globalRegion, now, this::drainGlobalRegionState));
+            this.workerPool.execute("global region drain", () -> this.globalTickRunner.runIfDue(this.globalRegion, now, this::drainGlobalRegionState));
             return;
         }
         this.globalTickRunner.runIfDue(this.globalRegion, now, this::drainGlobalRegionState);
@@ -435,7 +435,7 @@ public final class RegionThreadingEngine implements RegionThreading {
     }
 
     private void submitRegionTick(RegionState region, long nowNanos) {
-        this.workerPool.execute(() -> {
+        this.workerPool.execute("region drain " + region.coordinate(), () -> {
             this.tickRunner.runIfDue(region, nowNanos, () -> this.drainRegionState(region));
             this.regionizer.removeIfEmpty(region);
         });
