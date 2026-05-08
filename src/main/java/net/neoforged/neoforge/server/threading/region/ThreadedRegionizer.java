@@ -252,6 +252,7 @@ final class ThreadedRegionizer {
     }
 
     private void requestMergeCheckIfNeeded(RegionSectionCoordinate coordinate, RegionState region) {
+        final Set<RegionState> neighbourRegions = new HashSet<>();
         for (int dz = -REGION_SECTION_MERGE_RADIUS; dz <= REGION_SECTION_MERGE_RADIUS; ++dz) {
             for (int dx = -REGION_SECTION_MERGE_RADIUS; dx <= REGION_SECTION_MERGE_RADIUS; ++dx) {
                 if ((dx | dz) == 0) {
@@ -260,16 +261,18 @@ final class ThreadedRegionizer {
 
                 final RegionSectionCoordinate neighbour = new RegionSectionCoordinate(coordinate.level(), coordinate.sectionX() + dx, coordinate.sectionZ() + dz);
                 final RegionState neighbourRegion = this.sectionRegions.get(neighbour);
-                if (neighbourRegion != null && neighbourRegion != region) {
-                    this.requestMergeCheck(region);
+                if (neighbourRegion != null && neighbourRegion != region && neighbourRegions.add(neighbourRegion)) {
+                    this.requestMergeCheck(neighbourRegion);
                     this.mergeRegions(region, neighbourRegion);
-                    return;
                 }
             }
         }
     }
 
     private void mergeRegions(RegionState target, RegionState source) {
+        if (target == source || target.isDead() || source.isDead()) {
+            return;
+        }
         if (target.isRunning() || source.isRunning() || target.hasQueuedTasks() || source.hasQueuedTasks()) {
             target.markPendingRecalculation();
             source.markPendingRecalculation();
