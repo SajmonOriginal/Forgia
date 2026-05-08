@@ -129,6 +129,20 @@ final class ThreadedRegionizer {
     }
 
     void removeIfEmpty(RegionState region) {
+        if (this.writeLockOwner == Thread.currentThread()) {
+            this.removeIfEmptyLocked(region);
+            return;
+        }
+
+        final long stamp = this.acquireWriteLock();
+        try {
+            this.removeIfEmptyLocked(region);
+        } finally {
+            this.releaseWriteLock(stamp);
+        }
+    }
+
+    private void removeIfEmptyLocked(RegionState region) {
         this.recalculateIfPending(region);
         if (region.isEmpty()) {
             if (this.regions.values().removeIf(value -> value == region)) {
