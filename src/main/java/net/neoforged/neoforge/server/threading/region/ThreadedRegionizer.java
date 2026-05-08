@@ -38,6 +38,19 @@ final class ThreadedRegionizer {
     private Thread writeLockOwner;
 
     RegionState getOrCreate(RegionCoordinate coordinate) {
+        if (this.writeLockOwner == Thread.currentThread()) {
+            return this.getOrCreateLocked(coordinate);
+        }
+
+        final long stamp = this.acquireWriteLock();
+        try {
+            return this.getOrCreateLocked(coordinate);
+        } finally {
+            this.releaseWriteLock(stamp);
+        }
+    }
+
+    private RegionState getOrCreateLocked(RegionCoordinate coordinate) {
         final RegionState existing = this.regions.get(coordinate);
         if (existing != null) {
             return existing;
@@ -59,7 +72,7 @@ final class ThreadedRegionizer {
         final long stamp = this.acquireWriteLock();
         try {
             final RegionSectionCoordinate coordinate = RegionSectionCoordinate.fromChunk(level, chunkX, chunkZ);
-            final RegionState region = this.getOrCreate(coordinate.regionCoordinate());
+            final RegionState region = this.getOrCreateLocked(coordinate.regionCoordinate());
             final RegionSectionState section = this.sections.computeIfAbsent(coordinate, RegionSectionState::new);
             this.sectionRegions.putIfAbsent(coordinate, region);
             final boolean wasEmpty = section.isEmpty();
@@ -97,7 +110,7 @@ final class ThreadedRegionizer {
     RegionState addEntity(Entity entity, RegionCoordinate coordinate) {
         final long stamp = this.acquireWriteLock();
         try {
-            final RegionState region = this.getOrCreate(coordinate);
+            final RegionState region = this.getOrCreateLocked(coordinate);
             final RegionState previous = this.entities.put(entity, region);
             this.entityLevels.put(entity, coordinate.level());
             if (previous != null && previous != region) {
