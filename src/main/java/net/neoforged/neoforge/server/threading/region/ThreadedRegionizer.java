@@ -150,7 +150,7 @@ final class ThreadedRegionizer {
 
     private void removeIfEmptyLocked(RegionState region) {
         this.recalculateIfPending(region);
-        if (region.isEmpty()) {
+        if (region.isEmpty() && !this.hasTrackedEntities(region)) {
             if (this.regions.values().removeIf(value -> value == region)) {
                 region.markDead();
             }
@@ -224,6 +224,10 @@ final class ThreadedRegionizer {
 
     private static RegionSectionCoordinate sectionCoordinate(RegionCoordinate coordinate) {
         return new RegionSectionCoordinate(coordinate.level(), coordinate.regionX(), coordinate.regionZ());
+    }
+
+    private boolean hasTrackedEntities(RegionState region) {
+        return this.entities.containsValue(region);
     }
 
     int size() {
