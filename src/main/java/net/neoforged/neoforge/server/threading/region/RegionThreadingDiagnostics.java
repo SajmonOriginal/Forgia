@@ -14,6 +14,7 @@ public record RegionThreadingDiagnostics(
         int submittedRegionCount,
         int sectionCount,
         int loadedChunkCount,
+        int pendingRecalculationCount,
         long structuralChangeCount,
         long splitCheckRequestCount,
         long mergeCheckRequestCount,

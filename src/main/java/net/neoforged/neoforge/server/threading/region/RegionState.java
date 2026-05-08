@@ -129,6 +129,10 @@ final class RegionState {
         return this.pendingRecalculation.compareAndSet(true, false);
     }
 
+    boolean hasPendingRecalculation() {
+        return this.pendingRecalculation.get();
+    }
+
     boolean isDead() {
         return this.lifecycleState.get() == RegionLifecycleState.DEAD;
     }

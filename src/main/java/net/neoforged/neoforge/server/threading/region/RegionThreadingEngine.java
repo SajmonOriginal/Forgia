@@ -393,6 +393,7 @@ public final class RegionThreadingEngine implements RegionThreading {
                 this.regionizer.submittedRegionCount(),
                 this.regionizer.sectionCount(),
                 this.regionizer.loadedChunkCount(),
+                this.regionizer.pendingRecalculationCount(),
                 this.regionizer.structuralChangeCount(),
                 this.regionizer.splitCheckRequestCount(),
                 this.regionizer.mergeCheckRequestCount(),

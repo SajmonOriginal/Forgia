@@ -398,6 +398,16 @@ final class ThreadedRegionizer {
         return count;
     }
 
+    int pendingRecalculationCount() {
+        int count = 0;
+        for (final RegionState region : this.uniqueRegions()) {
+            if (region.hasPendingRecalculation()) {
+                ++count;
+            }
+        }
+        return count;
+    }
+
     long totalRegionTickCount() {
         long count = 0L;
         for (final RegionState region : this.uniqueRegions()) {
