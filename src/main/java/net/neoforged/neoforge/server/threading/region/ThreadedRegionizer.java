@@ -64,6 +64,19 @@ final class ThreadedRegionizer {
     }
 
     RegionState get(RegionCoordinate coordinate) {
+        if (this.writeLockOwner == Thread.currentThread()) {
+            return this.getLocked(coordinate);
+        }
+
+        final long stamp = this.regionLock.readLock();
+        try {
+            return this.getLocked(coordinate);
+        } finally {
+            this.regionLock.unlockRead(stamp);
+        }
+    }
+
+    private RegionState getLocked(RegionCoordinate coordinate) {
         final RegionState region = this.regions.get(coordinate);
         return region == null ? this.sectionRegions.get(sectionCoordinate(coordinate)) : region;
     }
