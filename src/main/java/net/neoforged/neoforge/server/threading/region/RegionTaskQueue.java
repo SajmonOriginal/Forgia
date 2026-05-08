@@ -70,23 +70,6 @@ final class RegionTaskQueue {
         return failedTasks;
     }
 
-    void drainUnchecked() {
-        Runnable task;
-        while ((task = this.tasks.poll()) != null) {
-            task.run();
-        }
-
-        for (final RegionScheduledTask scheduledTask : this.pollDueScheduledTasks()) {
-            if (scheduledTask.runAndReschedule(this.currentTick)) {
-                synchronized (this.scheduledTasks) {
-                    this.scheduledTasks.add(scheduledTask);
-                }
-            }
-        }
-
-        ++this.currentTick;
-    }
-
     boolean isEmpty() {
         if (!this.tasks.isEmpty()) {
             return false;
