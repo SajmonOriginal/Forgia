@@ -465,12 +465,13 @@ public final class RegionThreadingEngine implements RegionThreading {
         if (!this.workerPool.execute("region drain " + region.coordinate(), () -> {
             try {
                 this.tickRunner.runIfDue(region, nowNanos, () -> this.drainRegionState(region));
-                this.regionizer.removeIfEmpty(region);
             } finally {
                 region.clearWorkerSubmitted();
+                this.regionizer.removeIfEmpty(region);
             }
         })) {
             region.clearWorkerSubmitted();
+            this.regionizer.removeIfEmpty(region);
             this.rejectedWorkerTaskCount.incrementAndGet();
         }
     }
