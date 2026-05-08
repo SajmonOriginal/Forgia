@@ -137,6 +137,10 @@ final class RegionState {
         return this.lifecycleState.get() == RegionLifecycleState.DEAD;
     }
 
+    boolean tryMarkDead() {
+        return this.lifecycleState.compareAndSet(RegionLifecycleState.READY, RegionLifecycleState.DEAD);
+    }
+
     void markDead() {
         this.lifecycleState.set(RegionLifecycleState.DEAD);
     }

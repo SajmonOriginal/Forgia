@@ -180,7 +180,7 @@ final class ThreadedRegionizer {
         this.recalculateIfPending(region);
         if (region.isEmpty() && !this.hasTrackedEntities(region)) {
             if (this.regions.values().removeIf(value -> value == region)) {
-                region.markDead();
+                region.tryMarkDead();
             }
         }
     }
@@ -305,7 +305,12 @@ final class ThreadedRegionizer {
         if (target == source || target.isDead() || source.isDead()) {
             return;
         }
-        if (target.isRunning() || source.isRunning() || target.hasQueuedTasks() || source.hasQueuedTasks()) {
+        if (target.isRunning() || source.isRunning() || target.isWorkerSubmitted() || source.isWorkerSubmitted() || target.hasQueuedTasks() || source.hasQueuedTasks()) {
+            target.markPendingRecalculation();
+            source.markPendingRecalculation();
+            return;
+        }
+        if (!source.tryMarkDead()) {
             target.markPendingRecalculation();
             source.markPendingRecalculation();
             return;
@@ -316,20 +321,23 @@ final class ThreadedRegionizer {
             this.sectionRegions.put(section.coordinate(), target);
         }
         source.clearSections();
-        source.markDead();
         this.regions.replaceAll((coordinate, region) -> region == source ? target : region);
         this.entities.replaceAll((entity, region) -> region == source ? target : region);
         this.structuralChangeCount.incrementAndGet();
     }
 
     private void splitRegionIfNeeded(RegionState region) {
-        if (region.isRunning() || region.hasQueuedTasks()) {
+        if (region.isRunning() || region.isWorkerSubmitted() || region.hasQueuedTasks()) {
             region.markPendingRecalculation();
             return;
         }
 
         final List<List<RegionSectionState>> components = this.connectedComponents(region.sections());
         if (components.size() <= 1) {
+            return;
+        }
+        if (!region.tryMarkDead()) {
+            region.markPendingRecalculation();
             return;
         }
 
@@ -350,7 +358,6 @@ final class ThreadedRegionizer {
             }
             return this.getOrCreateLocked(RegionCoordinate.fromBlock(level, entity.blockPosition()));
         });
-        region.markDead();
         this.structuralChangeCount.incrementAndGet();
     }
 
