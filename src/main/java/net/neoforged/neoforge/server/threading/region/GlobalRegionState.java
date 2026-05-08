@@ -15,6 +15,7 @@ final class GlobalRegionState {
     private final RegionTickTimer tickTimer = new RegionTickTimer(System.nanoTime());
     private final RegionTickMetrics tickMetrics = new RegionTickMetrics();
     private final AtomicBoolean running = new AtomicBoolean();
+    private final AtomicBoolean workerSubmitted = new AtomicBoolean();
     private volatile Thread ownerThread;
 
     RegionTaskQueue taskQueue() {
@@ -55,5 +56,17 @@ final class GlobalRegionState {
 
     boolean isRunning() {
         return this.running.get();
+    }
+
+    boolean tryMarkWorkerSubmitted() {
+        return this.workerSubmitted.compareAndSet(false, true);
+    }
+
+    void clearWorkerSubmitted() {
+        this.workerSubmitted.set(false);
+    }
+
+    boolean isWorkerSubmitted() {
+        return this.workerSubmitted.get();
     }
 }

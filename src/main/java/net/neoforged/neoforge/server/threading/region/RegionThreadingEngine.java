@@ -154,17 +154,31 @@ public final class RegionThreadingEngine implements RegionThreading {
      */
     @ApiStatus.Internal
     public void drainGlobalTasks() {
-        if (this.globalRegion.isRunning()) {
+        if (this.globalRegion.isRunning() || this.globalRegion.isWorkerSubmitted()) {
             return;
         }
         final long now = System.nanoTime();
         if (this.globalWorkerExecutionEnabled) {
-            if (!this.workerPool.execute("global region drain", () -> this.globalTickRunner.runIfDue(this.globalRegion, now, this::drainGlobalRegionState))) {
-                this.rejectedWorkerTaskCount.incrementAndGet();
-            }
+            this.submitGlobalTick(now);
             return;
         }
         this.globalTickRunner.runIfDue(this.globalRegion, now, this::drainGlobalRegionState);
+    }
+
+    private void submitGlobalTick(long nowNanos) {
+        if (!this.globalRegion.tryMarkWorkerSubmitted()) {
+            return;
+        }
+        if (!this.workerPool.execute("global region drain", () -> {
+            try {
+                this.globalTickRunner.runIfDue(this.globalRegion, nowNanos, this::drainGlobalRegionState);
+            } finally {
+                this.globalRegion.clearWorkerSubmitted();
+            }
+        })) {
+            this.globalRegion.clearWorkerSubmitted();
+            this.rejectedWorkerTaskCount.incrementAndGet();
+        }
     }
 
     private void drainGlobalRegionState() {
@@ -387,6 +401,7 @@ public final class RegionThreadingEngine implements RegionThreading {
                 this.workerExecutionEnabled,
                 this.globalWorkerExecutionEnabled,
                 this.globalRegion.isRunning(),
+                this.globalRegion.isWorkerSubmitted(),
                 this.rejectedWorkerTaskCount.get(),
                 RegionOwnershipViolationHandler.violationCount(),
                 this.globalRegion.tickMetrics().tickCount(),

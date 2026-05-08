@@ -23,6 +23,7 @@ public record RegionThreadingDiagnostics(
         boolean workerExecutionEnabled,
         boolean globalWorkerExecutionEnabled,
         boolean globalRegionRunning,
+        boolean globalRegionSubmitted,
         long rejectedWorkerTaskCount,
         long ownershipViolationCount,
         long globalTickCount,
