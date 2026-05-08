@@ -333,9 +333,8 @@ final class ThreadedRegionizer {
 
         this.regions.values().removeIf(value -> value == region);
         region.clearSections();
-        for (int i = 0; i < components.size(); ++i) {
-            final List<RegionSectionState> component = components.get(i);
-            final RegionState splitRegion = i == 0 ? region : new RegionState(component.get(0).coordinate().regionCoordinate());
+        for (final List<RegionSectionState> component : components) {
+            final RegionState splitRegion = new RegionState(component.get(0).coordinate().regionCoordinate());
             for (final RegionSectionState section : component) {
                 splitRegion.addSection(section);
                 this.sectionRegions.put(section.coordinate(), splitRegion);
@@ -347,9 +346,9 @@ final class ThreadedRegionizer {
             if (currentRegion != region || !(entity.level() instanceof ServerLevel level)) {
                 return currentRegion;
             }
-            final RegionState splitRegion = this.get(RegionCoordinate.fromBlock(level, entity.blockPosition()));
-            return splitRegion == null ? currentRegion : splitRegion;
+            return this.getOrCreateLocked(RegionCoordinate.fromBlock(level, entity.blockPosition()));
         });
+        region.markDead();
         this.structuralChangeCount.incrementAndGet();
     }
 
