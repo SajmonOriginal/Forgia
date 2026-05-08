@@ -11,6 +11,7 @@ package net.neoforged.neoforge.server.threading.region;
 public record RegionThreadingDiagnostics(
         int regionCount,
         int runningRegionCount,
+        int submittedRegionCount,
         int sectionCount,
         int loadedChunkCount,
         long structuralChangeCount,

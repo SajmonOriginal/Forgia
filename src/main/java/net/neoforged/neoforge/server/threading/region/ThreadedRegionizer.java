@@ -374,6 +374,16 @@ final class ThreadedRegionizer {
         return count;
     }
 
+    int submittedRegionCount() {
+        int count = 0;
+        for (final RegionState region : this.uniqueRegions()) {
+            if (region.isWorkerSubmitted()) {
+                ++count;
+            }
+        }
+        return count;
+    }
+
     long totalRegionTickCount() {
         long count = 0L;
         for (final RegionState region : this.uniqueRegions()) {

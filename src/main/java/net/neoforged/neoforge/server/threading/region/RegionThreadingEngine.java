@@ -286,7 +286,7 @@ public final class RegionThreadingEngine implements RegionThreading {
         final long now = System.nanoTime();
         this.regionizer.forEach(region -> {
             if (region.coordinate().level() == level) {
-                if (this.workerExecutionEnabled && region.isRunning()) {
+                if (this.workerExecutionEnabled && (region.isRunning() || region.isWorkerSubmitted())) {
                     return;
                 }
                 if (this.workerExecutionEnabled) {
@@ -375,6 +375,7 @@ public final class RegionThreadingEngine implements RegionThreading {
         return new RegionThreadingDiagnostics(
                 this.regionizer.size(),
                 this.regionizer.runningRegionCount(),
+                this.regionizer.submittedRegionCount(),
                 this.regionizer.sectionCount(),
                 this.regionizer.loadedChunkCount(),
                 this.regionizer.structuralChangeCount(),
@@ -440,10 +441,18 @@ public final class RegionThreadingEngine implements RegionThreading {
     }
 
     private void submitRegionTick(RegionState region, long nowNanos) {
+        if (!region.tryMarkWorkerSubmitted()) {
+            return;
+        }
         if (!this.workerPool.execute("region drain " + region.coordinate(), () -> {
-            this.tickRunner.runIfDue(region, nowNanos, () -> this.drainRegionState(region));
-            this.regionizer.removeIfEmpty(region);
+            try {
+                this.tickRunner.runIfDue(region, nowNanos, () -> this.drainRegionState(region));
+                this.regionizer.removeIfEmpty(region);
+            } finally {
+                region.clearWorkerSubmitted();
+            }
         })) {
+            region.clearWorkerSubmitted();
             this.rejectedWorkerTaskCount.incrementAndGet();
         }
     }

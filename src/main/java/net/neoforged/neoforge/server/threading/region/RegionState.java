@@ -22,6 +22,7 @@ final class RegionState {
     private final RegionTickMetrics tickMetrics = new RegionTickMetrics();
     private final AtomicReference<RegionLifecycleState> lifecycleState = new AtomicReference<>(RegionLifecycleState.READY);
     private final AtomicBoolean pendingRecalculation = new AtomicBoolean();
+    private final AtomicBoolean workerSubmitted = new AtomicBoolean();
     private volatile Thread ownerThread;
 
     RegionState(RegionCoordinate coordinate) {
@@ -104,6 +105,18 @@ final class RegionState {
         return this.lifecycleState.get() == RegionLifecycleState.TICKING;
     }
 
+    boolean tryMarkWorkerSubmitted() {
+        return this.workerSubmitted.compareAndSet(false, true);
+    }
+
+    void clearWorkerSubmitted() {
+        this.workerSubmitted.set(false);
+    }
+
+    boolean isWorkerSubmitted() {
+        return this.workerSubmitted.get();
+    }
+
     void markPendingRecalculation() {
         this.pendingRecalculation.set(true);
     }
@@ -121,6 +134,6 @@ final class RegionState {
     }
 
     boolean isEmpty() {
-        return !this.isDead() && !this.isRunning() && !this.hasSections() && this.taskQueue.isEmpty();
+        return !this.isDead() && !this.isRunning() && !this.isWorkerSubmitted() && !this.hasSections() && this.taskQueue.isEmpty();
     }
 }

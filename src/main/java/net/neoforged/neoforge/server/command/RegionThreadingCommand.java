@@ -33,6 +33,7 @@ final class RegionThreadingCommand {
         source.sendSuccess(() -> Component.literal("Region threading diagnostics: enabled=" + NeoForgeConfig.SERVER.enableRegionThreadingBridge.get()
                 + ", regions=" + diagnostics.regionCount()
                 + ", runningRegions=" + diagnostics.runningRegionCount()
+                + ", submittedRegions=" + diagnostics.submittedRegionCount()
                 + ", sections=" + diagnostics.sectionCount()
                 + ", loadedChunks=" + diagnostics.loadedChunkCount()
                 + ", structuralChanges=" + diagnostics.structuralChangeCount()
