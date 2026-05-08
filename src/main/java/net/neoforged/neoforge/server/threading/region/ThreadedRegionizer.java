@@ -419,6 +419,10 @@ final class ThreadedRegionizer {
     }
 
     int sectionCount() {
+        if (this.writeLockOwner == Thread.currentThread()) {
+            return this.sections.size();
+        }
+
         final long stamp = this.regionLock.readLock();
         try {
             return this.sections.size();
@@ -428,19 +432,31 @@ final class ThreadedRegionizer {
     }
 
     int loadedChunkCount() {
+        if (this.writeLockOwner == Thread.currentThread()) {
+            return this.loadedChunkCountLocked();
+        }
+
         final long stamp = this.regionLock.readLock();
         try {
-            int count = 0;
-            for (final RegionSectionState section : this.sections.values()) {
-                count += section.chunkCount();
-            }
-            return count;
+            return this.loadedChunkCountLocked();
         } finally {
             this.regionLock.unlockRead(stamp);
         }
     }
 
+    private int loadedChunkCountLocked() {
+        int count = 0;
+        for (final RegionSectionState section : this.sections.values()) {
+            count += section.chunkCount();
+        }
+        return count;
+    }
+
     int entityCount() {
+        if (this.writeLockOwner == Thread.currentThread()) {
+            return this.entities.size();
+        }
+
         final long stamp = this.regionLock.readLock();
         try {
             return this.entities.size();
