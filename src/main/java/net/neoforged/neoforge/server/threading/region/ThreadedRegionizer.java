@@ -355,7 +355,10 @@ final class ThreadedRegionizer {
     }
 
     private void recalculateIfPending(RegionState region) {
-        if (!region.consumePendingRecalculation() || region.isRunning() || region.hasQueuedTasks() || region.isDead()) {
+        if (region.isRunning() || region.isWorkerSubmitted() || region.hasQueuedTasks() || region.isDead()) {
+            return;
+        }
+        if (!region.consumePendingRecalculation()) {
             return;
         }
 
