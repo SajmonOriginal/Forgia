@@ -128,8 +128,10 @@ final class ThreadedRegionizer {
             this.entityLevels.put(entity, coordinate.level());
             if (previous != null && previous != region) {
                 this.removeIfEmpty(previous);
+                this.requestMergeCheckIfNeeded(sectionCoordinate(coordinate), region);
                 this.structuralChangeCount.incrementAndGet();
             } else if (previous == null) {
+                this.requestMergeCheckIfNeeded(sectionCoordinate(coordinate), region);
                 this.structuralChangeCount.incrementAndGet();
             }
             return region;
