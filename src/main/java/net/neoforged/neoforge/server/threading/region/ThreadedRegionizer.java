@@ -42,11 +42,17 @@ final class ThreadedRegionizer {
         if (existing != null) {
             return existing;
         }
+        final RegionState sectionRegion = this.sectionRegions.get(sectionCoordinate(coordinate));
+        if (sectionRegion != null) {
+            this.regions.putIfAbsent(coordinate, sectionRegion);
+            return sectionRegion;
+        }
         return this.regions.computeIfAbsent(coordinate, RegionState::new);
     }
 
     RegionState get(RegionCoordinate coordinate) {
-        return this.regions.get(coordinate);
+        final RegionState region = this.regions.get(coordinate);
+        return region == null ? this.sectionRegions.get(sectionCoordinate(coordinate)) : region;
     }
 
     RegionState addChunk(ServerLevel level, int chunkX, int chunkZ) {
@@ -214,6 +220,10 @@ final class ThreadedRegionizer {
     private void releaseWriteLock(long stamp) {
         this.writeLockOwner = null;
         this.regionLock.unlockWrite(stamp);
+    }
+
+    private static RegionSectionCoordinate sectionCoordinate(RegionCoordinate coordinate) {
+        return new RegionSectionCoordinate(coordinate.level(), coordinate.regionX(), coordinate.regionZ());
     }
 
     int size() {
