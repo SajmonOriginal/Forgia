@@ -446,6 +446,9 @@ public final class RegionThreadingEngine implements RegionThreading {
     }
 
     private void drainRegionState(RegionState region) {
+        if (region.isDead()) {
+            return;
+        }
         if (!region.tryMarkRunning()) {
             return;
         }
@@ -460,6 +463,9 @@ public final class RegionThreadingEngine implements RegionThreading {
     }
 
     private void submitRegionTick(RegionState region, long nowNanos) {
+        if (region.isDead()) {
+            return;
+        }
         if (!region.tryMarkWorkerSubmitted()) {
             return;
         }
