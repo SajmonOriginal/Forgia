@@ -56,7 +56,8 @@ final class RegionThreadingCommand {
                 + ", globalTicks=" + diagnostics.globalTickCount()
                 + ", globalLastTickNs=" + diagnostics.globalLastTickDurationNanos()
                 + ", regionTicks=" + diagnostics.totalRegionTickCount()
-                + ", maxRegionLastTickNs=" + diagnostics.maxRegionLastTickDurationNanos()), false);
+                + ", maxRegionLastTickNs=" + diagnostics.maxRegionLastTickDurationNanos()
+                + ", cappedDrains=" + diagnostics.cappedDrainCount()), false);
     }
 
     private static void sendNotInstalled(CommandSourceStack source) {

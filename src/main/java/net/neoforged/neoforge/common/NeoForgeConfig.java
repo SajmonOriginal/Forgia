@@ -46,6 +46,8 @@ public class NeoForgeConfig {
 
         public final LongValue regionThreadingLongTickWarningNanos;
 
+        public final IntValue regionThreadingMaxImmediateTasksPerDrain;
+
         Server(ModConfigSpec.Builder builder) {
             removeErroringBlockEntities = builder
                     .comment("Set this to true to remove any BlockEntity that throws an error in its update method instead of closing the server and reporting a crash log. BE WARNED THIS COULD SCREW UP EVERYTHING USE SPARINGLY WE ARE NOT RESPONSIBLE FOR DAMAGES.")
@@ -114,6 +116,11 @@ public class NeoForgeConfig {
                     .comment("EXPERIMENTAL: Logs a warning when a global or region queue drain exceeds this duration in nanoseconds. 0 disables warnings.")
                     .translation("neoforge.configgui.regionThreadingLongTickWarningNanos")
                     .defineInRange("regionThreadingLongTickWarningNanos", 0L, 0L, Long.MAX_VALUE);
+
+            regionThreadingMaxImmediateTasksPerDrain = builder
+                    .comment("EXPERIMENTAL: Maximum immediate region tasks drained from one queue per tick. 0 disables the limit.")
+                    .translation("neoforge.configgui.regionThreadingMaxImmediateTasksPerDrain")
+                    .defineInRange("regionThreadingMaxImmediateTasksPerDrain", 10000, 0, Integer.MAX_VALUE);
         }
     }
 

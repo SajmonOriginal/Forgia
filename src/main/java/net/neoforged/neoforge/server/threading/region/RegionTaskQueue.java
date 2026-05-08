@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import net.neoforged.neoforge.common.NeoForgeConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -18,6 +19,7 @@ final class RegionTaskQueue {
 
     private final Queue<Runnable> tasks = new ConcurrentLinkedQueue<>();
     private final List<RegionScheduledTask> scheduledTasks = new ArrayList<>();
+    private long cappedDrainCount;
     private long currentTick;
 
     void enqueue(Runnable task) {
@@ -43,6 +45,8 @@ final class RegionTaskQueue {
 
     int drain() {
         int failedTasks = 0;
+        int drainedImmediateTasks = 0;
+        final int maxImmediateTasks = NeoForgeConfig.SERVER.regionThreadingMaxImmediateTasksPerDrain.get();
         Runnable task;
         while ((task = this.tasks.poll()) != null) {
             try {
@@ -50,6 +54,11 @@ final class RegionTaskQueue {
             } catch (RuntimeException | Error exception) {
                 ++failedTasks;
                 LOGGER.error("Region task failed", exception);
+            }
+            if (maxImmediateTasks > 0 && ++drainedImmediateTasks >= maxImmediateTasks && !this.tasks.isEmpty()) {
+                ++this.cappedDrainCount;
+                LOGGER.warn("Region task drain hit immediate task limit of {}", maxImmediateTasks);
+                break;
             }
         }
 
@@ -68,6 +77,10 @@ final class RegionTaskQueue {
 
         ++this.currentTick;
         return failedTasks;
+    }
+
+    long cappedDrainCount() {
+        return this.cappedDrainCount;
     }
 
     boolean isEmpty() {

@@ -409,7 +409,8 @@ public final class RegionThreadingEngine implements RegionThreading {
                 this.globalRegion.tickMetrics().tickCount(),
                 this.globalRegion.tickMetrics().lastTickDurationNanos(),
                 this.regionizer.totalRegionTickCount(),
-                this.regionizer.maxRegionLastTickDurationNanos());
+                this.regionizer.maxRegionLastTickDurationNanos(),
+                this.globalRegion.cappedDrainCount() + this.regionizer.cappedDrainCount());
     }
 
     /**

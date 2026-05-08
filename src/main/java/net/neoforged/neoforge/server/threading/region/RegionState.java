@@ -81,6 +81,10 @@ final class RegionState {
         return this.tickMetrics;
     }
 
+    long cappedDrainCount() {
+        return this.taskQueue.cappedDrainCount();
+    }
+
     void beginOwnership() {
         this.ownerThread = Thread.currentThread();
     }

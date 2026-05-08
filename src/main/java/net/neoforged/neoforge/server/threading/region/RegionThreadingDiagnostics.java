@@ -30,4 +30,5 @@ public record RegionThreadingDiagnostics(
         long globalTickCount,
         long globalLastTickDurationNanos,
         long totalRegionTickCount,
-        long maxRegionLastTickDurationNanos) {}
+        long maxRegionLastTickDurationNanos,
+        long cappedDrainCount) {}

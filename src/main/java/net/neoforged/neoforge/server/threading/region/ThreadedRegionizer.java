@@ -400,6 +400,14 @@ final class ThreadedRegionizer {
         return max;
     }
 
+    long cappedDrainCount() {
+        long count = 0L;
+        for (final RegionState region : this.uniqueRegions()) {
+            count += region.cappedDrainCount();
+        }
+        return count;
+    }
+
     Collection<RegionState> regions() {
         return this.uniqueRegions();
     }
