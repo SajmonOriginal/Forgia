@@ -48,6 +48,8 @@ public class NeoForgeConfig {
 
         public final IntValue regionThreadingMaxImmediateTasksPerDrain;
 
+        public final IntValue regionThreadingMaxScheduledTasksPerDrain;
+
         Server(ModConfigSpec.Builder builder) {
             removeErroringBlockEntities = builder
                     .comment("Set this to true to remove any BlockEntity that throws an error in its update method instead of closing the server and reporting a crash log. BE WARNED THIS COULD SCREW UP EVERYTHING USE SPARINGLY WE ARE NOT RESPONSIBLE FOR DAMAGES.")
@@ -121,6 +123,11 @@ public class NeoForgeConfig {
                     .comment("EXPERIMENTAL: Maximum immediate region tasks drained from one queue per tick. 0 disables the limit.")
                     .translation("neoforge.configgui.regionThreadingMaxImmediateTasksPerDrain")
                     .defineInRange("regionThreadingMaxImmediateTasksPerDrain", 10000, 0, Integer.MAX_VALUE);
+
+            regionThreadingMaxScheduledTasksPerDrain = builder
+                    .comment("EXPERIMENTAL: Maximum due scheduled region tasks drained from one queue per tick. 0 disables the limit.")
+                    .translation("neoforge.configgui.regionThreadingMaxScheduledTasksPerDrain")
+                    .defineInRange("regionThreadingMaxScheduledTasksPerDrain", 10000, 0, Integer.MAX_VALUE);
         }
     }
 

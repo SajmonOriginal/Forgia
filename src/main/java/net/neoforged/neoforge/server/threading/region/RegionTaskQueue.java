@@ -62,7 +62,7 @@ final class RegionTaskQueue {
             }
         }
 
-        for (final RegionScheduledTask scheduledTask : this.pollDueScheduledTasks()) {
+        for (final RegionScheduledTask scheduledTask : this.pollDueScheduledTasks(NeoForgeConfig.SERVER.regionThreadingMaxScheduledTasksPerDrain.get())) {
             try {
                 if (scheduledTask.runAndReschedule(this.currentTick)) {
                     synchronized (this.scheduledTasks) {
@@ -110,7 +110,7 @@ final class RegionTaskQueue {
         return scheduledTask;
     }
 
-    private List<RegionScheduledTask> pollDueScheduledTasks() {
+    private List<RegionScheduledTask> pollDueScheduledTasks(int maxScheduledTasks) {
         final List<RegionScheduledTask> dueTasks = new ArrayList<>();
         synchronized (this.scheduledTasks) {
             final Iterator<RegionScheduledTask> iterator = this.scheduledTasks.iterator();
@@ -119,6 +119,11 @@ final class RegionTaskQueue {
                 if (scheduledTask.isCancelled()) {
                     iterator.remove();
                 } else if (scheduledTask.isDue(this.currentTick)) {
+                    if (maxScheduledTasks > 0 && dueTasks.size() >= maxScheduledTasks) {
+                        ++this.cappedDrainCount;
+                        LOGGER.warn("Region task drain hit scheduled task limit of {}", maxScheduledTasks);
+                        break;
+                    }
                     iterator.remove();
                     dueTasks.add(scheduledTask);
                 }
