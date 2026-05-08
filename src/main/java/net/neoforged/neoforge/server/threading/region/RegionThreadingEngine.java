@@ -41,6 +41,7 @@ public final class RegionThreadingEngine implements RegionThreading {
     private final boolean workerExecutionEnabled;
     private final boolean globalWorkerExecutionEnabled;
     private final AtomicLong rejectedWorkerTaskCount = new AtomicLong();
+    private final AtomicLong failedQueuedTaskCount = new AtomicLong();
     private volatile boolean shutdown;
 
     public RegionThreadingEngine(int workerThreads, boolean workerExecutionEnabled, boolean globalWorkerExecutionEnabled) {
@@ -186,7 +187,7 @@ public final class RegionThreadingEngine implements RegionThreading {
             return;
         }
         try {
-            this.runInGlobalRegionOwned(this.globalRegion.taskQueue()::drain);
+            this.runInGlobalRegionOwned(() -> this.failedQueuedTaskCount.addAndGet(this.globalRegion.taskQueue().drain()));
         } finally {
             this.globalRegion.clearRunning();
         }
@@ -403,6 +404,7 @@ public final class RegionThreadingEngine implements RegionThreading {
                 this.globalRegion.isRunning(),
                 this.globalRegion.isWorkerSubmitted(),
                 this.rejectedWorkerTaskCount.get(),
+                this.failedQueuedTaskCount.get(),
                 RegionOwnershipViolationHandler.violationCount(),
                 this.globalRegion.tickMetrics().tickCount(),
                 this.globalRegion.tickMetrics().lastTickDurationNanos(),
@@ -448,7 +450,7 @@ public final class RegionThreadingEngine implements RegionThreading {
         final RegionCoordinate coordinate = region.coordinate();
         try {
             region.beginOwnership();
-            this.runWithContext(new BasicRegionThreadingContext(RegionThreadingContext.Kind.REGION, coordinate.level(), coordinate, region), region.taskQueue()::drain);
+            this.runWithContext(new BasicRegionThreadingContext(RegionThreadingContext.Kind.REGION, coordinate.level(), coordinate, region), () -> this.failedQueuedTaskCount.addAndGet(region.taskQueue().drain()));
         } finally {
             region.endOwnership();
             region.clearRunning();

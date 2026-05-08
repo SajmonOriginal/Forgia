@@ -10,8 +10,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 final class RegionTaskQueue {
+    private static final Logger LOGGER = LogManager.getLogger();
+
     private final Queue<Runnable> tasks = new ConcurrentLinkedQueue<>();
     private final List<RegionScheduledTask> scheduledTasks = new ArrayList<>();
     private long currentTick;
@@ -37,7 +41,36 @@ final class RegionTaskQueue {
         return this.schedule(task, initialDelayTicks, periodTicks);
     }
 
-    void drain() {
+    int drain() {
+        int failedTasks = 0;
+        Runnable task;
+        while ((task = this.tasks.poll()) != null) {
+            try {
+                task.run();
+            } catch (RuntimeException | Error exception) {
+                ++failedTasks;
+                LOGGER.error("Region task failed", exception);
+            }
+        }
+
+        for (final RegionScheduledTask scheduledTask : this.pollDueScheduledTasks()) {
+            try {
+                if (scheduledTask.runAndReschedule(this.currentTick)) {
+                    synchronized (this.scheduledTasks) {
+                        this.scheduledTasks.add(scheduledTask);
+                    }
+                }
+            } catch (RuntimeException | Error exception) {
+                ++failedTasks;
+                LOGGER.error("Scheduled region task failed", exception);
+            }
+        }
+
+        ++this.currentTick;
+        return failedTasks;
+    }
+
+    void drainUnchecked() {
         Runnable task;
         while ((task = this.tasks.poll()) != null) {
             task.run();
