@@ -157,7 +157,7 @@ final class ThreadedRegionizer {
     }
 
     void forEach(Consumer<RegionState> action) {
-        this.uniqueRegions().forEach(action);
+        this.regions().forEach(action);
     }
 
     void removeIfEmpty(RegionState region) {
@@ -402,23 +402,51 @@ final class ThreadedRegionizer {
     }
 
     private Set<RegionState> uniqueRegions() {
+        if (this.writeLockOwner == Thread.currentThread()) {
+            return this.uniqueRegionsLocked();
+        }
+
+        final long stamp = this.regionLock.readLock();
+        try {
+            return this.uniqueRegionsLocked();
+        } finally {
+            this.regionLock.unlockRead(stamp);
+        }
+    }
+
+    private Set<RegionState> uniqueRegionsLocked() {
         return new HashSet<>(this.regions.values());
     }
 
     int sectionCount() {
-        return this.sections.size();
+        final long stamp = this.regionLock.readLock();
+        try {
+            return this.sections.size();
+        } finally {
+            this.regionLock.unlockRead(stamp);
+        }
     }
 
     int loadedChunkCount() {
-        int count = 0;
-        for (final RegionSectionState section : this.sections.values()) {
-            count += section.chunkCount();
+        final long stamp = this.regionLock.readLock();
+        try {
+            int count = 0;
+            for (final RegionSectionState section : this.sections.values()) {
+                count += section.chunkCount();
+            }
+            return count;
+        } finally {
+            this.regionLock.unlockRead(stamp);
         }
-        return count;
     }
 
     int entityCount() {
-        return this.entities.size();
+        final long stamp = this.regionLock.readLock();
+        try {
+            return this.entities.size();
+        } finally {
+            this.regionLock.unlockRead(stamp);
+        }
     }
 
     int runningRegionCount() {
