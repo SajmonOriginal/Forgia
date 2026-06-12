@@ -1,0 +1,20 @@
+Creative Commons Attribution 4.0 International Public License
+SPDX-License-Identifier: CC-BY-4.0
+
+This repository applies CC-BY-4.0 to Forgia-specific documentation,
+README content, project descriptions, and other non-code explanatory text,
+unless a file states otherwise.
+
+Full legal code:
+https://creativecommons.org/licenses/by/4.0/legalcode.txt
+
+Human-readable summary:
+https://creativecommons.org/licenses/by/4.0/
+
+Attribution requested by this repository:
+
+Based on Forgia by Simon Horak / SajmonOriginal: https://github.com/SajmonOriginal/Forgia
+
+This license does not apply to source code, generated patches, upstream
+NeoForge/Forge material, Minecraft-related assets, or third-party material
+unless those materials explicitly state that they are licensed under CC-BY-4.0.
